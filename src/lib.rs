@@ -16,7 +16,7 @@ mod search;
 pub use search::{DateRangeProcessor, Enquire, MSet, Match, NumberRangeProcessor, RangeProcessor};
 
 mod term;
-pub use term::{SimpleStopper, Stem, Stopper, Term, TermGenerator};
+pub use term::{Stem, Stopper, Term, TermGenerator};
 
 #[derive(Debug)]
 pub struct Position(ffi::termpos);

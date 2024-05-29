@@ -2,6 +2,7 @@ use crate::ffi::{self, ToCxxString};
 
 use std::{
     fmt::{self, Debug, Display},
+    ops::Deref,
     pin::Pin,
 };
 
@@ -86,13 +87,10 @@ impl QueryParser {
         self.0.as_mut().set_stemmer(stemmer.as_ref())
     }
 
-    pub fn set_stopper<T>(&mut self, stopper: impl Into<Option<T>>)
-    where
-        T: AsRef<ffi::Stopper>,
-    {
-        let stopper = stopper
-            .into()
-            .map_or(std::ptr::null(), |s| s.as_ref() as *const ffi::Stopper);
+    pub fn set_stopper<T: crate::Stopper + 'static>(&mut self, stopper: impl Into<Option<T>>) {
+        let stopper = stopper.into().map_or(std::ptr::null(), |s| {
+            Deref::deref(&s.into_ffi().upcast()) as *const ffi::shim::FfiStopper
+        });
         unsafe { ffi::shim::query_parser_set_stopper(self.0.as_mut(), stopper) }
     }
 

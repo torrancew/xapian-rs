@@ -1,12 +1,18 @@
 use crate::ffi;
 
 use std::{
+    cell::{Ref, RefCell},
     collections::HashSet,
     fmt::{self, Debug, Display},
+    ops::Deref,
     pin::Pin,
+    rc::Rc,
 };
 
-use autocxx::{cxx::CxxString, prelude::*};
+use autocxx::{
+    cxx::{CxxString, UniquePtr},
+    prelude::*,
+};
 
 pub struct Stem(Pin<Box<ffi::Stem>>);
 
@@ -40,52 +46,28 @@ impl AsRef<ffi::Stem> for Stem {
     }
 }
 
-pub struct SimpleStopper(Pin<Box<ffi::SimpleStopper>>);
+pub trait Stopper {
+    fn is_stopword(&self, word: &str) -> bool;
 
-impl SimpleStopper {
-    pub fn add(&mut self, word: impl AsRef<str>) {
-        cxx::let_cxx_string!(word = word.as_ref());
-        self.0.as_mut().add(&word)
-    }
-
-    pub fn stop_at(&self, word: impl AsRef<str>) -> bool {
-        cxx::let_cxx_string!(word = word.as_ref());
-        ffi::shim::simple_stopper_stop_at(&self.0, &word)
+    fn into_ffi(self) -> &'static StopperWrapper
+    where
+        Self: Sized + 'static,
+    {
+        Box::leak(Box::new(StopperWrapper::from(self)))
     }
 }
 
-impl AsRef<ffi::Stopper> for SimpleStopper {
-    fn as_ref(&self) -> &ffi::Stopper {
-        ffi::shim::simple_stopper_downcast(&self.0)
+pub struct StopperWrapper(Rc<RefCell<ffi::RustStopper>>);
+
+impl StopperWrapper {
+    pub fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiStopper> + '_ {
+        Ref::map(self.0.borrow(), |s| s.as_ref())
     }
 }
 
-impl Default for SimpleStopper {
-    fn default() -> Self {
-        Self(ffi::SimpleStopper::new().within_box())
-    }
-}
-
-impl<S> FromIterator<S> for SimpleStopper
-where
-    S: AsRef<str>,
-{
-    fn from_iter<T: IntoIterator<Item = S>>(iter: T) -> Self {
-        let mut stopper = Self::default();
-        for word in iter {
-            stopper.add(word);
-        }
-
-        stopper
-    }
-}
-
-pub struct Stopper<'s>(Pin<&'s ffi::Stopper>);
-
-impl Stopper<'_> {
-    pub fn stop_at(&self, word: impl AsRef<str>) -> bool {
-        cxx::let_cxx_string!(word = word.as_ref());
-        ffi::shim::stopper_stop_at(&self.0, &word)
+impl<T: Stopper + 'static> From<T> for StopperWrapper {
+    fn from(value: T) -> Self {
+        Self(ffi::RustStopper::from_trait(value))
     }
 }
 
@@ -110,6 +92,12 @@ impl Term {
 
     pub fn wdf(&self) -> u32 {
         self.ptr.get_wdf().into()
+    }
+}
+
+impl AsRef<str> for Term {
+    fn as_ref(&self) -> &str {
+        self.value.to_str().unwrap()
     }
 }
 

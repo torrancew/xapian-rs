@@ -7,39 +7,38 @@
 //! Additionally, this module implements a few basic traits to make comparisons
 //! and C++ object cloning somewhat more accessible to Rust wrappers, a
 
-use std::{path::Path, pin::Pin};
+use std::{cell::RefCell, path::Path, pin::Pin, rc::Rc};
 
 use autocxx::{
-    cxx::{self, CxxString, UniquePtr},
+    cxx::{CxxString, UniquePtr},
     prelude::*,
+    subclass::prelude::*,
 };
 use bytes::Bytes;
 
 pub use self::ffi::Xapian::*;
-pub use manual::Stopper;
 
 pub mod shim {
     pub use super::ffi::shim::*;
-    pub use super::manual::{query_parser_set_stopper, simple_stopper_downcast, stopper_stop_at};
 }
 
 include_cpp! {
     #include "shim.h"
     safety!(unsafe)
 
-    block!("shim::stopper_stop_at")
-    block!("shim::simple_stopper_downcast")
     block!("Xapian::DateValueRangeProcessor")
     block!("Xapian::ErrorHandler")
     block!("Xapian::NumberValueRangeProcessor")
+    block!("Xapian::Stopper")
     block!("Xapian::ValueRangeProcessor")
+
+    subclass!("shim::FfiStopper", RustStopper)
 
     extern_cpp_opaque_type!("ExpandDecider", manual::ExpandDecider)
     extern_cpp_opaque_type!("FieldProcessor", manual::FieldProcessor)
     extern_cpp_opaque_type!("KeyMaker", manual::KeyMaker)
     extern_cpp_opaque_type!("MatchDecider", manual::MatchDecider)
     extern_cpp_opaque_type!("MatchSpy", manual::MatchSpy)
-    extern_cpp_opaque_type!("Stopper", manual::Stopper)
 
     generate!("Xapian::Database")
     generate!("Xapian::DateRangeProcessor")
@@ -66,35 +65,24 @@ include_cpp! {
     generate_ns!("shim")
 }
 
-#[cxx::bridge(namespace = "Xapian")]
-mod manual {
-    unsafe extern "C++" {
-        include!("shim.h");
+#[subclass]
+pub struct RustStopper {
+    inner: Pin<Box<dyn crate::Stopper + 'static>>,
+}
 
-        type QueryParser = super::ffi::Xapian::QueryParser;
-        type SimpleStopper = super::ffi::Xapian::SimpleStopper;
-
-        type ExpandDecider;
-        type FieldProcessor;
-        type KeyMaker;
-        type MatchSpy;
-        type Stopper;
+impl RustStopper {
+    pub fn from_trait(stopper: impl crate::Stopper + 'static) -> Rc<RefCell<Self>> {
+        let me = Self {
+            inner: Box::pin(stopper),
+            cpp_peer: Default::default(),
+        };
+        Self::new_rust_owned(me)
     }
+}
 
-    #[namespace = "shim"]
-    unsafe extern "C++" {
-        include!("shim.h");
-
-        /// # Safety
-        /// This method uses null as a sigil and is safe to call
-        unsafe fn query_parser_set_stopper(
-            query_parser: Pin<&mut QueryParser>,
-            stopper: *const Stopper,
-        );
-
-        fn simple_stopper_downcast<'s>(stopper: &'s SimpleStopper) -> &'s Stopper;
-
-        fn stopper_stop_at(stopper: &Stopper, word: &CxxString) -> bool;
+impl shim::FfiStopper_methods for RustStopper {
+    fn is_stopword(&self, word: &CxxString) -> bool {
+        self.inner.is_stopword(&word.to_string())
     }
 }
 

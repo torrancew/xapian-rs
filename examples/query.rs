@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf};
 
 use clap::Parser;
-use xapian_rs::{Database, Enquire, QueryParser, SimpleStopper, Stem};
+use xapian_rs::{Database, Enquire, QueryParser, Stem, Stopper};
 
 #[derive(Parser)]
 struct Args {
@@ -9,11 +9,25 @@ struct Args {
     queries: Vec<String>,
 }
 
+pub struct MyStopper(HashSet<String>);
+
+impl<S: ToString> FromIterator<S> for MyStopper {
+    fn from_iter<T: IntoIterator<Item = S>>(iter: T) -> Self {
+        Self(iter.into_iter().map(|item| item.to_string()).collect())
+    }
+}
+
+impl Stopper for MyStopper {
+    fn is_stopword(&self, word: &str) -> bool {
+        self.0.contains(word)
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let stemmer = Stem::for_language("english");
 
     let stopwords = ["a", "an", "the"];
-    let stopper = SimpleStopper::from_iter(stopwords);
+    let stopper = MyStopper::from_iter(&stopwords);
 
     let args = Args::parse();
     let db = Database::open(args.db, None);
@@ -25,15 +39,18 @@ fn main() -> anyhow::Result<()> {
     qp.add_prefix("id", "I:");
 
     qp.set_stemmer(stemmer);
-    qp.set_stopper(&stopper);
+    qp.set_stopper(stopper);
     let query = qp.parse_query(qstr, None, "S:");
     eprintln!("query:{query}");
+
     for term in qp.stoplist() {
         eprintln!("stopword:{term}");
     }
 
-    for term in qp.unstem("ZS:licens") {
-        eprintln!("unstem:{term}");
+    for term in query.terms() {
+        for t in qp.unstem(&term) {
+            eprintln!("unstem:{term}={t}");
+        }
     }
 
     let enquire = Enquire::new(db, &query, None);
