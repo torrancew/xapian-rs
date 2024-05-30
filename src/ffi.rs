@@ -53,6 +53,7 @@ include_cpp! {
     generate!("Xapian::Query")
     generate!("Xapian::QueryParser")
     generate!("Xapian::QueryParser_feature_flag")
+    generate!("Xapian::RSet")
     generate!("Xapian::RangeProcessor")
     generate!("Xapian::SimpleStopper")
     generate!("Xapian::Stem")

@@ -17,8 +17,9 @@ namespace shim {
 
   inline Xapian::MSet enquire_get_mset(
       const Xapian::Enquire &e, Xapian::doccount first,
-      Xapian::doccount maxitems,  Xapian::doccount atleast
-  ) { return e.get_mset(first, maxitems, atleast, nullptr, nullptr); }
+      Xapian::doccount maxitems,  Xapian::doccount atleast,
+      const Xapian::RSet *rset
+  ) { return e.get_mset(first, maxitems, atleast, rset, nullptr); }
 
   inline Xapian::MSetIterator mset_iterator_copy(const Xapian::MSetIterator &it) { return Xapian::MSetIterator(it); }
   inline void mset_iterator_decrement(Xapian::MSetIterator &it) { it--; }

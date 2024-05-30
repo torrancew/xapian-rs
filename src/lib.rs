@@ -13,7 +13,9 @@ mod query;
 pub use query::{Query, QueryParser};
 
 mod search;
-pub use search::{DateRangeProcessor, Enquire, MSet, Match, NumberRangeProcessor, RangeProcessor};
+pub use search::{
+    DateRangeProcessor, Enquire, MSet, Match, NumberRangeProcessor, RSet, RangeProcessor,
+};
 
 mod term;
 pub use term::{Stem, Stopper, Term, TermGenerator};

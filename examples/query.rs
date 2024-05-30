@@ -54,7 +54,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     let enquire = Enquire::new(db, &query, None);
-    for m in enquire.mset(0, 100, 100).matches() {
+    for m in enquire.mset(0, 100, 100, None).matches() {
         println!("{}", m.document());
     }
 

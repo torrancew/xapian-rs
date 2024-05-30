@@ -57,14 +57,26 @@ impl Enquire {
         Self(enquire)
     }
 
-    pub fn mset(&self, first: u32, maxitems: u32, atleast: impl Into<Option<u32>>) -> MSet {
+    pub fn mset(
+        &self,
+        first: u32,
+        maxitems: u32,
+        atleast: impl Into<Option<u32>>,
+        rset: impl Into<Option<RSet>>,
+    ) -> MSet {
+        let rset = rset
+            .into()
+            .map_or(std::ptr::null(), |r| r.as_ref() as *const _);
         MSet::new(
-            ffi::shim::enquire_get_mset(
-                &self.0,
-                first.into(),
-                maxitems.into(),
-                atleast.into().unwrap_or(0).into(),
-            )
+            unsafe {
+                ffi::shim::enquire_get_mset(
+                    &self.0,
+                    first.into(),
+                    maxitems.into(),
+                    atleast.into().unwrap_or(0).into(),
+                    rset,
+                )
+            }
             .within_box(),
         )
     }
@@ -225,6 +237,46 @@ impl NumberRangeProcessor {
                 .check_range(&start, &end)
                 .within_box(),
         )
+    }
+}
+
+pub struct RSet(Pin<Box<ffi::RSet>>);
+
+impl RSet {
+    pub fn add_document(&mut self, it: impl AsRef<ffi::MSetIterator>) {
+        self.0.as_mut().add_document1(it.as_ref())
+    }
+
+    pub fn add_document_by_id(&mut self, id: impl Into<ffi::docid>) {
+        self.0.as_mut().add_document(id.into())
+    }
+
+    pub fn contains(&self, it: impl AsRef<ffi::MSetIterator>) -> bool {
+        self.0.contains1(it.as_ref())
+    }
+
+    pub fn contains_id(&self, id: impl Into<ffi::docid>) -> bool {
+        self.0.contains(id.into())
+    }
+
+    pub fn remove_document(&mut self, it: impl AsRef<ffi::MSetIterator>) {
+        self.0.as_mut().remove_document1(it.as_ref())
+    }
+
+    pub fn remove_document_by_id(&mut self, id: impl Into<ffi::docid>) {
+        self.0.as_mut().remove_document(id.into())
+    }
+}
+
+impl AsRef<ffi::RSet> for RSet {
+    fn as_ref(&self) -> &ffi::RSet {
+        &self.0
+    }
+}
+
+impl Default for RSet {
+    fn default() -> Self {
+        Self(ffi::RSet::new2().within_box())
     }
 }
 
