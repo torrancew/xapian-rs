@@ -1,6 +1,12 @@
 use crate::ffi;
 
-use std::{pin::Pin, string::FromUtf8Error};
+use std::{
+    cell::{Ref, RefCell},
+    ops::Deref,
+    pin::Pin,
+    rc::Rc,
+    string::FromUtf8Error,
+};
 
 use autocxx::{cxx, prelude::*};
 use bitflags::bitflags;
@@ -63,10 +69,14 @@ impl Enquire {
         maxitems: u32,
         atleast: impl Into<Option<u32>>,
         rset: impl Into<Option<RSet>>,
+        decider: impl Into<Option<&'static MatchDeciderWrapper>>,
     ) -> MSet {
         let rset = rset
             .into()
             .map_or(std::ptr::null(), |r| r.as_ref() as *const _);
+        let decider = decider
+            .into()
+            .map_or(std::ptr::null(), |d| Deref::deref(&d.upcast()) as *const _);
         MSet::new(
             unsafe {
                 ffi::shim::enquire_get_mset(
@@ -75,6 +85,7 @@ impl Enquire {
                     maxitems.into(),
                     atleast.into().unwrap_or(0).into(),
                     rset,
+                    decider,
                 )
             }
             .within_box(),
@@ -124,6 +135,31 @@ impl Match {
 impl AsRef<ffi::MSetIterator> for Match {
     fn as_ref(&self) -> &ffi::MSetIterator {
         &self.ptr
+    }
+}
+
+pub trait MatchDecider {
+    fn is_match(&self, doc: &crate::Document) -> bool;
+
+    fn into_ffi(self) -> &'static MatchDeciderWrapper
+    where
+        Self: Sized + 'static,
+    {
+        Box::leak(Box::new(MatchDeciderWrapper::from(self)))
+    }
+}
+
+pub struct MatchDeciderWrapper(Rc<RefCell<ffi::RustMatchDecider>>);
+
+impl MatchDeciderWrapper {
+    pub fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiMatchDecider> + '_ {
+        Ref::map(self.0.borrow(), |s| s.as_ref())
+    }
+}
+
+impl<T: MatchDecider + 'static> From<T> for MatchDeciderWrapper {
+    fn from(value: T) -> Self {
+        Self(ffi::RustMatchDecider::from_trait(value))
     }
 }
 

@@ -89,7 +89,7 @@ impl QueryParser {
 
     pub fn set_stopper<T: crate::Stopper + 'static>(&mut self, stopper: impl Into<Option<T>>) {
         let stopper = stopper.into().map_or(std::ptr::null(), |s| {
-            Deref::deref(&s.into_ffi().upcast()) as *const ffi::shim::FfiStopper
+            Deref::deref(&s.into_ffi().upcast()) as *const _
         });
         unsafe { ffi::shim::query_parser_set_stopper(self.0.as_mut(), stopper) }
     }

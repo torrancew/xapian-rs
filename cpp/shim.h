@@ -4,11 +4,18 @@
 #define _XAPIAN_SHIM_H
 
 namespace shim {
+  class FfiMatchDecider : public Xapian::MatchDecider {
+    public:
+      FfiMatchDecider() : Xapian::MatchDecider() {}
+      virtual bool operator()(const Xapian::Document &doc) const override { return this->is_match(doc); }
+      virtual bool is_match(const Xapian::Document&) const = 0;
+  };
+
   class FfiStopper : public Xapian::Stopper {
     public:
       FfiStopper() : Xapian::Stopper() {}
       virtual bool operator()(const std::string &word) const override { return this->is_stopword(word); }
-      virtual bool is_stopword(const std::string &word) const = 0;
+      virtual bool is_stopword(const std::string&) const = 0;
   };
 
   inline Xapian::RangeProcessor& date_range_processor_downcast(Xapian::DateRangeProcessor &rp) { return rp; }
@@ -18,8 +25,8 @@ namespace shim {
   inline Xapian::MSet enquire_get_mset(
       const Xapian::Enquire &e, Xapian::doccount first,
       Xapian::doccount maxitems,  Xapian::doccount atleast,
-      const Xapian::RSet *rset
-  ) { return e.get_mset(first, maxitems, atleast, rset, nullptr); }
+      const Xapian::RSet *rset, const FfiMatchDecider *decider
+  ) { return e.get_mset(first, maxitems, atleast, rset, decider); }
 
   inline Xapian::MSetIterator mset_iterator_copy(const Xapian::MSetIterator &it) { return Xapian::MSetIterator(it); }
   inline void mset_iterator_decrement(Xapian::MSetIterator &it) { it--; }

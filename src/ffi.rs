@@ -28,17 +28,18 @@ include_cpp! {
 
     block!("Xapian::DateValueRangeProcessor")
     block!("Xapian::ErrorHandler")
+    block!("Xapian::ExpandDecider")
+    block!("Xapian::FieldProcessor")
+    block!("Xapian::KeyMaker")
+    block!("Xapian::MatchDecider")
+    block!("Xapian::MatchSpy")
     block!("Xapian::NumberValueRangeProcessor")
     block!("Xapian::Stopper")
     block!("Xapian::ValueRangeProcessor")
 
+    subclass!("shim::FfiMatchDecider", RustMatchDecider)
     subclass!("shim::FfiStopper", RustStopper)
 
-    extern_cpp_opaque_type!("ExpandDecider", manual::ExpandDecider)
-    extern_cpp_opaque_type!("FieldProcessor", manual::FieldProcessor)
-    extern_cpp_opaque_type!("KeyMaker", manual::KeyMaker)
-    extern_cpp_opaque_type!("MatchDecider", manual::MatchDecider)
-    extern_cpp_opaque_type!("MatchSpy", manual::MatchSpy)
 
     generate!("Xapian::Database")
     generate!("Xapian::DateRangeProcessor")
@@ -64,6 +65,28 @@ include_cpp! {
     generate!("Xapian::WritableDatabase")
 
     generate_ns!("shim")
+}
+
+#[subclass]
+pub struct RustMatchDecider {
+    inner: Pin<Box<dyn crate::MatchDecider + 'static>>,
+}
+
+impl RustMatchDecider {
+    pub fn from_trait(stopper: impl crate::MatchDecider + 'static) -> Rc<RefCell<Self>> {
+        let me = Self {
+            inner: Box::pin(stopper),
+            cpp_peer: Default::default(),
+        };
+        Self::new_rust_owned(me)
+    }
+}
+
+impl shim::FfiMatchDecider_methods for RustMatchDecider {
+    fn is_match(&self, doc: &Document) -> bool {
+        let doc = crate::Document::new(shim::document_copy(doc).within_box());
+        self.inner.is_match(&doc)
+    }
 }
 
 #[subclass]
