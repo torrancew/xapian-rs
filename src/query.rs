@@ -2,17 +2,111 @@ use crate::ffi::{self, ToCxxString};
 
 use std::{
     fmt::{self, Debug, Display},
-    ops::Deref,
+    ops::{BitAnd, BitOr, BitXor, Deref},
     pin::Pin,
 };
 
 use autocxx::{cxx, prelude::*};
+
+#[repr(u32)]
+#[non_exhaustive]
+pub enum Operator {
+    And = 0,
+    Or,
+    AndNot,
+    XOr,
+    AndMaybe,
+    Filter,
+    Near,
+    Phrase,
+    ValueRange,
+    ScaleWeight,
+    EliteSet,
+    ValueGe,
+    ValueLe,
+    Synonym,
+    Max,
+    Wildcard,
+    Invalid = 99,
+    LeafTerm = 100,
+    LeafPostingSource,
+    LeafMatchAll,
+    LeafMatchNothing,
+}
+
+impl From<Operator> for ffi::Query_op {
+    fn from(value: Operator) -> Self {
+        use ffi::Query_op::*;
+        use Operator as Op;
+        match value {
+            Op::And => OP_AND,
+            Op::Or => OP_OR,
+            Op::AndNot => OP_AND_NOT,
+            Op::XOr => OP_XOR,
+            Op::AndMaybe => OP_AND_MAYBE,
+            Op::Filter => OP_FILTER,
+            Op::Near => OP_NEAR,
+            Op::Phrase => OP_PHRASE,
+            Op::ValueRange => OP_VALUE_RANGE,
+            Op::ScaleWeight => OP_SCALE_WEIGHT,
+            Op::EliteSet => OP_ELITE_SET,
+            Op::ValueGe => OP_VALUE_GE,
+            Op::ValueLe => OP_VALUE_LE,
+            Op::Synonym => OP_SYNONYM,
+            Op::Max => OP_MAX,
+            Op::Wildcard => OP_WILDCARD,
+            Op::Invalid => OP_INVALID,
+            Op::LeafTerm => LEAF_TERM,
+            Op::LeafPostingSource => LEAF_POSTING_SOURCE,
+            Op::LeafMatchAll => LEAF_MATCH_ALL,
+            Op::LeafMatchNothing => LEAF_MATCH_NOTHING,
+        }
+    }
+}
+
+impl From<ffi::Query_op> for Operator {
+    fn from(value: ffi::Query_op) -> Self {
+        use ffi::Query_op::*;
+        use Operator as Op;
+        match value {
+            OP_AND => Op::And,
+            OP_OR => Op::Or,
+            OP_AND_NOT => Op::AndNot,
+            OP_XOR => Op::XOr,
+            OP_AND_MAYBE => Op::AndMaybe,
+            OP_FILTER => Op::Filter,
+            OP_NEAR => Op::Near,
+            OP_PHRASE => Op::Phrase,
+            OP_VALUE_RANGE => Op::ValueRange,
+            OP_SCALE_WEIGHT => Op::ScaleWeight,
+            OP_ELITE_SET => Op::EliteSet,
+            OP_VALUE_GE => Op::ValueGe,
+            OP_VALUE_LE => Op::ValueLe,
+            OP_SYNONYM => Op::Synonym,
+            OP_MAX => Op::Max,
+            OP_WILDCARD => Op::Wildcard,
+            OP_INVALID => Op::Invalid,
+            LEAF_TERM => Op::LeafTerm,
+            LEAF_POSTING_SOURCE => Op::LeafPostingSource,
+            LEAF_MATCH_ALL => Op::LeafMatchAll,
+            LEAF_MATCH_NOTHING => Op::LeafMatchNothing,
+        }
+    }
+}
 
 pub struct Query(Pin<Box<ffi::Query>>);
 
 impl Query {
     pub(crate) fn new(ptr: Pin<Box<ffi::Query>>) -> Self {
         Self(ptr)
+    }
+
+    pub fn combine(op: Operator, a: impl AsRef<ffi::Query>, b: impl AsRef<ffi::Query>) -> Self {
+        Self(ffi::Query::new7(op.into(), a.as_ref(), b.as_ref()).within_box())
+    }
+
+    pub fn operator(&self) -> Operator {
+        self.0.get_type().into()
     }
 
     pub fn terms(&self) -> crate::iter::TermIter {
@@ -33,6 +127,27 @@ impl Query {
 impl AsRef<ffi::Query> for Query {
     fn as_ref(&self) -> &ffi::Query {
         &self.0
+    }
+}
+
+impl BitAnd for Query {
+    type Output = Query;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self::combine(Operator::And, &self, &rhs)
+    }
+}
+
+impl BitOr for Query {
+    type Output = Query;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self::combine(Operator::Or, &self, &rhs)
+    }
+}
+
+impl BitXor for Query {
+    type Output = Query;
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Self::combine(Operator::XOr, &self, &rhs)
     }
 }
 
