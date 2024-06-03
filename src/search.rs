@@ -63,6 +63,11 @@ impl Enquire {
         Self(enquire)
     }
 
+    pub fn add_matchspy<T: crate::MatchSpy + 'static>(&mut self, spy: T) {
+        let spy = spy.into_ffi();
+        unsafe { ffi::shim::enquire_add_matchspy(self.0.as_mut(), spy.upcast()) }
+    }
+
     pub fn mset(
         &self,
         first: u32,
@@ -160,6 +165,36 @@ impl MatchDeciderWrapper {
 impl<T: MatchDecider + 'static> From<T> for MatchDeciderWrapper {
     fn from(value: T) -> Self {
         Self(ffi::RustMatchDecider::from_trait(value))
+    }
+}
+
+pub trait MatchSpy {
+    fn observe(&self, doc: &crate::Document, weight: f64);
+
+    fn into_ffi(self) -> &'static mut MatchSpyWrapper
+    where
+        Self: Sized + 'static,
+    {
+        Box::leak(Box::new(MatchSpyWrapper::from(self)))
+    }
+
+    fn name(&self) -> Option<String> {
+        None
+    }
+}
+
+pub struct MatchSpyWrapper(Rc<RefCell<ffi::RustMatchSpy>>);
+
+impl MatchSpyWrapper {
+    pub fn upcast(&mut self) -> *mut ffi::shim::FfiMatchSpy {
+        use ffi::shim::FfiMatchSpy_methods;
+        self.0.borrow_mut().upcast()
+    }
+}
+
+impl<T: MatchSpy + 'static> From<T> for MatchSpyWrapper {
+    fn from(value: T) -> Self {
+        Self(ffi::RustMatchSpy::from_trait(value))
     }
 }
 

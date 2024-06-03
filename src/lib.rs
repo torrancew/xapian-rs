@@ -14,7 +14,7 @@ pub use query::{Query, QueryParser};
 
 mod search;
 pub use search::{
-    DateRangeProcessor, Enquire, MSet, Match, MatchDecider, NumberRangeProcessor, RSet,
+    DateRangeProcessor, Enquire, MSet, Match, MatchDecider, MatchSpy, NumberRangeProcessor, RSet,
     RangeProcessor,
 };
 

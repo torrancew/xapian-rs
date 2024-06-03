@@ -11,6 +11,15 @@ namespace shim {
       virtual bool is_match(const Xapian::Document&) const = 0;
   };
 
+  class FfiMatchSpy : public Xapian::MatchSpy {
+    public:
+      FfiMatchSpy() : Xapian::MatchSpy() {}
+      virtual FfiMatchSpy* upcast() { return this; }
+      virtual std::string name() const override { return std::string("shim::FfiMatchSpy"); }
+      virtual void operator()(const Xapian::Document &doc, double wt) override { return this->observe(doc, wt); }
+      virtual void observe(const Xapian::Document&, double) = 0;
+  };
+
   class FfiStopper : public Xapian::Stopper {
     public:
       FfiStopper() : Xapian::Stopper() {}
@@ -22,6 +31,7 @@ namespace shim {
 
   inline Xapian::Document document_copy(const Xapian::Document &doc) { return Xapian::Document(doc); }
 
+  inline void enquire_add_matchspy( Xapian::Enquire &e, FfiMatchSpy *m) { e.add_matchspy(m); }
   inline Xapian::MSet enquire_get_mset(
       const Xapian::Enquire &e, Xapian::doccount first,
       Xapian::doccount maxitems,  Xapian::doccount atleast,

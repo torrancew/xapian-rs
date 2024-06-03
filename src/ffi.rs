@@ -7,7 +7,7 @@
 //! Additionally, this module implements a few basic traits to make comparisons
 //! and C++ object cloning somewhat more accessible to Rust wrappers, a
 
-use std::{cell::RefCell, path::Path, pin::Pin, rc::Rc};
+use std::{any::TypeId, cell::RefCell, path::Path, pin::Pin, rc::Rc};
 
 use autocxx::{
     cxx::{CxxString, UniquePtr},
@@ -38,6 +38,7 @@ include_cpp! {
     block!("Xapian::ValueRangeProcessor")
 
     subclass!("shim::FfiMatchDecider", RustMatchDecider)
+    subclass!("shim::FfiMatchSpy", RustMatchSpy)
     subclass!("shim::FfiStopper", RustStopper)
 
 
@@ -86,6 +87,35 @@ impl shim::FfiMatchDecider_methods for RustMatchDecider {
     fn is_match(&self, doc: &Document) -> bool {
         let doc = crate::Document::new(shim::document_copy(doc).within_box());
         self.inner.is_match(&doc)
+    }
+}
+
+#[subclass]
+pub struct RustMatchSpy {
+    inner: Box<dyn crate::MatchSpy + 'static>,
+}
+
+impl RustMatchSpy {
+    pub fn from_trait(stopper: impl crate::MatchSpy + 'static) -> Rc<RefCell<Self>> {
+        let me = Self {
+            inner: Box::new(stopper),
+            cpp_peer: Default::default(),
+        };
+        Self::new_rust_owned(me)
+    }
+}
+
+impl shim::FfiMatchSpy_methods for RustMatchSpy {
+    fn name(&self) -> UniquePtr<CxxString> {
+        self.inner
+            .name()
+            .unwrap_or(format!("{:?}", TypeId::of::<Self>()))
+            .to_cxx_string()
+    }
+
+    fn observe(&mut self, doc: &Document, weight: f64) {
+        let doc = crate::Document::new(shim::document_copy(doc).within_box());
+        self.inner.observe(&doc, weight)
     }
 }
 
