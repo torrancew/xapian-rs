@@ -1,23 +1,24 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use xapian_rs::{Database, Enquire, MatchDecider, QueryParser, Stem};
+use xapian_rs::{Database, Enquire, MatchDecider, QueryParser, Slot, Stem};
 
 #[derive(Parser)]
 struct Args {
     db: PathBuf,
-    reject: String,
+    reject: f64,
     queries: Vec<String>,
 }
 
-pub struct RejectDecider {
-    slot: xapian_rs::ffi::valueno,
-    term: String,
+pub struct RejectDecider<T: xapian_rs::FromValue> {
+    slot: Slot,
+    term: T,
 }
 
-impl MatchDecider for RejectDecider {
+impl<T: xapian_rs::FromValue> MatchDecider for RejectDecider<T> {
     fn is_match(&self, doc: &xapian_rs::Document) -> bool {
-        !matches!(doc.value(self.slot), Some(x) if x.as_ref() == self.term.as_bytes())
+        let value = doc.value::<T>(self.slot);
+        matches!(value, Some(Ok(t)) if t == self.term)
     }
 }
 

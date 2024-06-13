@@ -66,9 +66,9 @@ impl Document {
         self.0.as_mut().set_data(&data);
     }
 
-    pub fn set_value(&mut self, slot: ffi::valueno, value: impl AsRef<[u8]>) {
-        cxx::let_cxx_string!(value = value);
-        self.0.as_mut().add_value(slot, &value)
+    pub fn set_value(&mut self, slot: impl Into<ffi::valueno>, value: impl crate::ToValue) {
+        cxx::let_cxx_string!(value = value.serialize());
+        self.0.as_mut().add_value(slot.into(), &value)
     }
 
     pub fn terms(&self) -> crate::iter::TermIter {
@@ -78,11 +78,14 @@ impl Document {
         )
     }
 
-    pub fn value(&self, slot: ffi::valueno) -> Option<Bytes> {
-        let s = self.0.get_value(slot);
+    pub fn value<T: crate::FromValue>(
+        &self,
+        slot: impl Into<ffi::valueno>,
+    ) -> Option<Result<T, T::Error>> {
+        let s = self.0.get_value(slot.into());
         match s.is_empty() {
             true => None,
-            false => Some(ffi::cxx_bytes(&s)),
+            false => Some(T::deserialize(ffi::cxx_bytes(&s))),
         }
     }
 }

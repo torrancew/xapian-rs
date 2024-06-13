@@ -14,6 +14,44 @@ use autocxx::{
     prelude::*,
 };
 
+pub enum StemStrategy {
+    None,
+    Some,
+    All,
+    AllZ,
+    SomeFullPos,
+}
+
+impl From<ffi::QueryParser_stem_strategy> for StemStrategy {
+    fn from(value: ffi::QueryParser_stem_strategy) -> Self {
+        use ffi::QueryParser_stem_strategy::*;
+        use StemStrategy::*;
+
+        match value {
+            STEM_NONE => None,
+            STEM_SOME => Some,
+            STEM_ALL => All,
+            STEM_ALL_Z => AllZ,
+            STEM_SOME_FULL_POS => SomeFullPos,
+        }
+    }
+}
+
+impl From<StemStrategy> for ffi::QueryParser_stem_strategy {
+    fn from(value: StemStrategy) -> Self {
+        use ffi::QueryParser_stem_strategy::*;
+        use StemStrategy::*;
+
+        match value {
+            None => STEM_NONE,
+            Some => STEM_SOME,
+            All => STEM_ALL,
+            AllZ => STEM_ALL_Z,
+            SomeFullPos => STEM_SOME_FULL_POS,
+        }
+    }
+}
+
 pub struct Stem(Pin<Box<ffi::Stem>>);
 
 impl Stem {
@@ -140,10 +178,16 @@ impl PartialOrd for Term {
 pub struct TermGenerator(Pin<Box<ffi::TermGenerator>>);
 
 impl TermGenerator {
+    pub fn increase_termpos(&mut self, delta: impl Into<Option<u32>>) {
+        self.0
+            .as_mut()
+            .increase_termpos(delta.into().unwrap_or(100).into());
+    }
+
     pub fn index_text<T>(
         &mut self,
         text: impl AsRef<str>,
-        increment: impl Into<Option<ffi::termcount>>,
+        increment: impl Into<Option<u32>>,
         prefix: impl Into<Option<T>>,
     ) where
         T: AsRef<str> + Default,
@@ -152,7 +196,7 @@ impl TermGenerator {
         cxx::let_cxx_string!(prefix = prefix.into().unwrap_or_default().as_ref());
         self.0
             .as_mut()
-            .index_text1(&text, increment.into().unwrap_or(1.into()), &prefix)
+            .index_text1(&text, increment.into().unwrap_or(1).into(), &prefix)
     }
 
     pub fn set_document(&mut self, doc: impl AsRef<ffi::Document>) {

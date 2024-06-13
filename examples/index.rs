@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
 
     for license in osl_data {
         let mut doc = xapian_rs::Document::default();
-        doc.set_value(0.into(), &license.id);
+        doc.set_value(0, &license.id);
         doc.set_data(serde_json::to_string(&license).unwrap());
 
         indexer.set_document(&doc);

@@ -63,8 +63,8 @@ impl Enquire {
         Self(enquire)
     }
 
-    pub fn add_matchspy<T: crate::MatchSpy + 'static>(&mut self, spy: T) {
-        let spy = spy.into_ffi();
+    pub fn add_matchspy<T: crate::MatchSpy + Clone + 'static>(&mut self, spy: &T) {
+        let spy = spy.clone().into_ffi();
         unsafe { ffi::shim::enquire_add_matchspy(self.0.as_mut(), spy.upcast()) }
     }
 
@@ -157,7 +157,7 @@ pub trait MatchDecider {
 pub struct MatchDeciderWrapper(Rc<RefCell<ffi::RustMatchDecider>>);
 
 impl MatchDeciderWrapper {
-    pub fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiMatchDecider> + '_ {
+    pub(crate) fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiMatchDecider> + '_ {
         Ref::map(self.0.borrow(), |s| s.as_ref())
     }
 }
@@ -186,7 +186,7 @@ pub trait MatchSpy {
 pub struct MatchSpyWrapper(Rc<RefCell<ffi::RustMatchSpy>>);
 
 impl MatchSpyWrapper {
-    pub fn upcast(&mut self) -> *mut ffi::shim::FfiMatchSpy {
+    pub(crate) fn upcast(&mut self) -> *mut ffi::shim::FfiMatchSpy {
         use ffi::shim::FfiMatchSpy_methods;
         self.0.borrow_mut().upcast()
     }

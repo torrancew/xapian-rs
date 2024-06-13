@@ -16,7 +16,7 @@ use autocxx::{
 };
 use bytes::Bytes;
 
-pub use self::ffi::Xapian::*;
+pub(crate) use self::ffi::Xapian::*;
 
 pub mod shim {
     pub use super::ffi::shim::*;
@@ -41,7 +41,8 @@ include_cpp! {
     subclass!("shim::FfiMatchSpy", RustMatchSpy)
     subclass!("shim::FfiStopper", RustStopper)
 
-
+    generate!("Xapian::sortable_serialise")
+    generate!("Xapian::sortable_unserialise")
     generate!("Xapian::Database")
     generate!("Xapian::DateRangeProcessor")
     generate!("Xapian::Document")
@@ -64,6 +65,8 @@ include_cpp! {
     generate!("Xapian::TermIterator")
     generate!("Xapian::ValueCountMatchSpy")
     generate!("Xapian::WritableDatabase")
+
+    generate!("Xapian::InMemory::open")
 
     generate_ns!("shim")
 }

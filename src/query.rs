@@ -202,6 +202,10 @@ impl QueryParser {
         self.0.as_mut().set_stemmer(stemmer.as_ref())
     }
 
+    pub fn set_stemming_strategy(&mut self, strategy: impl Into<ffi::QueryParser_stem_strategy>) {
+        self.0.as_mut().set_stemming_strategy(strategy.into())
+    }
+
     pub fn set_stopper<T: crate::Stopper + 'static>(&mut self, stopper: impl Into<Option<T>>) {
         let stopper = stopper.into().map_or(std::ptr::null(), |s| {
             Deref::deref(&s.into_ffi().upcast()) as *const _
