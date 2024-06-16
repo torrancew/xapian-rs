@@ -71,8 +71,8 @@ impl WritableDatabase {
         self.0.as_mut().add_database(db.as_ref())
     }
 
-    pub fn add_document(&mut self, doc: impl AsRef<ffi::Document>) -> u32 {
-        self.0.as_mut().add_document(doc.as_ref()).into()
+    pub fn add_document(&mut self, doc: impl AsRef<ffi::Document>) -> crate::DocId {
+        unsafe { crate::DocId::new_unchecked(self.0.as_mut().add_document(doc.as_ref())) }
     }
 
     pub fn add_spelling(&self, word: impl AsRef<str>, increment: impl Into<Option<u32>>) {
@@ -132,8 +132,14 @@ impl WritableDatabase {
         self.0.remove_synonym(&term, &synonym);
     }
 
-    pub fn replace_document(&mut self, id: impl Into<ffi::docid>, doc: impl AsRef<ffi::Document>) {
-        self.0.as_mut().replace_document(id.into(), doc.as_ref())
+    pub fn replace_document(
+        &mut self,
+        id: impl Into<crate::DocId>,
+        doc: impl AsRef<ffi::Document>,
+    ) {
+        self.0
+            .as_mut()
+            .replace_document(ffi::docid::from(id.into()), doc.as_ref())
     }
 
     pub fn replace_document_by_term(
@@ -161,7 +167,7 @@ impl WritableDatabase {
 
 impl AsRef<ffi::Database> for WritableDatabase {
     fn as_ref(&self) -> &ffi::Database {
-        ffi::shim::writable_database_downcast(&self.0)
+        ffi::shim::writable_database_upcast(&self.0)
     }
 }
 

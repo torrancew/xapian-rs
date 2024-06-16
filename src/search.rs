@@ -2,6 +2,7 @@ use crate::ffi;
 
 use std::{
     cell::{Ref, RefCell},
+    fmt::Debug,
     ops::Deref,
     pin::Pin,
     rc::Rc,
@@ -37,14 +38,8 @@ impl DateRangeProcessor {
         )
     }
 
-    pub fn check_range(&mut self, start: impl AsRef<str>, end: impl AsRef<str>) -> crate::Query {
-        cxx::let_cxx_string!(start = start.as_ref());
-        cxx::let_cxx_string!(end = end.as_ref());
-        crate::Query::new(
-            unsafe { ffi::upcast::<ffi::RangeProcessor, _>(self.0.as_mut()) }
-                .check_range(&start, &end)
-                .within_box(),
-        )
+    pub fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
+        unsafe { ffi::upcast(self.0.as_mut()) }
     }
 }
 
@@ -96,6 +91,16 @@ impl Enquire {
             .within_box(),
         )
     }
+
+    pub fn query(&self) -> crate::Query {
+        crate::Query::from_ffi(ffi::shim::query_clone(self.0.get_query()).within_box())
+    }
+
+    pub fn set_query(&mut self, query: impl AsRef<ffi::Query>, qlen: impl Into<Option<u32>>) {
+        self.0
+            .as_mut()
+            .set_query(query.as_ref(), qlen.into().unwrap_or(0).into());
+    }
 }
 
 impl AsRef<ffi::Enquire> for Enquire {
@@ -140,6 +145,20 @@ impl Match {
 impl AsRef<ffi::MSetIterator> for Match {
     fn as_ref(&self) -> &ffi::MSetIterator {
         &self.ptr
+    }
+}
+
+impl Debug for Match {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Match")
+            .field(&self.ptr.get_description())
+            .finish()
+    }
+}
+
+impl PartialEq for Match {
+    fn eq(&self, other: &Self) -> bool {
+        self.ptr == other.ptr
     }
 }
 
@@ -300,14 +319,8 @@ impl NumberRangeProcessor {
         )
     }
 
-    pub fn check_range(&mut self, start: impl AsRef<str>, end: impl AsRef<str>) -> crate::Query {
-        cxx::let_cxx_string!(start = start.as_ref());
-        cxx::let_cxx_string!(end = end.as_ref());
-        crate::Query::new(
-            unsafe { ffi::upcast::<ffi::RangeProcessor, _>(self.0.as_mut()) }
-                .check_range(&start, &end)
-                .within_box(),
-        )
+    pub fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
+        unsafe { ffi::upcast(self.0.as_mut()) }
     }
 }
 
@@ -370,9 +383,7 @@ impl RangeProcessor {
         )
     }
 
-    pub fn check_range(&mut self, start: impl AsRef<str>, end: impl AsRef<str>) -> crate::Query {
-        cxx::let_cxx_string!(start = start.as_ref());
-        cxx::let_cxx_string!(end = end.as_ref());
-        crate::Query::new(self.0.as_mut().check_range(&start, &end).within_box())
+    pub fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
+        self.0.as_mut()
     }
 }

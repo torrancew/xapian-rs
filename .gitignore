@@ -1,2 +1,4 @@
-/examples/db
+/examples/db/*
 /target
+
+!/examples/db/.gitkeep

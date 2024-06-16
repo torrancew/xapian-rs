@@ -2,7 +2,6 @@ use crate::ffi;
 
 use std::{
     fmt::{self, Debug, Display},
-    num::NonZeroU32,
     pin::Pin,
 };
 
@@ -52,8 +51,8 @@ impl Document {
         ffi::cxx_bytes(&self.0.get_data())
     }
 
-    pub fn id(&self) -> Option<NonZeroU32> {
-        NonZeroU32::new(self.0.get_docid().into())
+    pub fn id(&self) -> Option<crate::DocId> {
+        crate::DocId::new(self.0.get_docid())
     }
 
     pub fn remove_term(&mut self, term: impl AsRef<str>) {
@@ -66,9 +65,11 @@ impl Document {
         self.0.as_mut().set_data(&data);
     }
 
-    pub fn set_value(&mut self, slot: impl Into<ffi::valueno>, value: impl crate::ToValue) {
+    pub fn set_value(&mut self, slot: impl Into<crate::Slot>, value: impl crate::ToValue) {
         cxx::let_cxx_string!(value = value.serialize());
-        self.0.as_mut().add_value(slot.into(), &value)
+        self.0
+            .as_mut()
+            .add_value(ffi::valueno::from(slot.into()), &value)
     }
 
     pub fn terms(&self) -> crate::iter::TermIter {
@@ -80,9 +81,9 @@ impl Document {
 
     pub fn value<T: crate::FromValue>(
         &self,
-        slot: impl Into<ffi::valueno>,
+        slot: impl Into<crate::Slot>,
     ) -> Option<Result<T, T::Error>> {
-        let s = self.0.get_value(slot.into());
+        let s = self.0.get_value(ffi::valueno::from(slot.into()));
         match s.is_empty() {
             true => None,
             false => Some(T::deserialize(ffi::cxx_bytes(&s))),

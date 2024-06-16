@@ -6,8 +6,9 @@
 //!
 //! Additionally, this module implements a few basic traits to make comparisons
 //! and C++ object cloning somewhat more accessible to Rust wrappers, a
+#![allow(unused_imports)]
 
-use std::{any::TypeId, cell::RefCell, path::Path, pin::Pin, rc::Rc};
+use std::{any::TypeId, cell::RefCell, fmt::Debug, path::Path, pin::Pin, rc::Rc};
 
 use autocxx::{
     cxx::{CxxString, UniquePtr},
@@ -41,6 +42,8 @@ include_cpp! {
     subclass!("shim::FfiMatchSpy", RustMatchSpy)
     subclass!("shim::FfiStopper", RustStopper)
 
+    generate!("Xapian::doccount")
+    generate!("Xapian::doccount_diff")
     generate!("Xapian::sortable_serialise")
     generate!("Xapian::sortable_unserialise")
     generate!("Xapian::Database")
@@ -177,6 +180,24 @@ impl Clone for Pin<Box<PositionIterator>> {
 impl PartialEq for PositionIterator {
     fn eq(&self, other: &Self) -> bool {
         shim::position_iterator_eq(self, other)
+    }
+}
+
+/// Create a new pinned `Box` containing a copy of this `Query`
+impl Clone for Pin<Box<Query>> {
+    fn clone(&self) -> Self {
+        shim::query_clone(self).within_box()
+    }
+}
+
+impl Debug for Query {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "Query{}{}{}",
+            "{",
+            self.get_description(),
+            "}"
+        ))
     }
 }
 

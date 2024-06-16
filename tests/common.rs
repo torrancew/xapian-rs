@@ -1,4 +1,9 @@
+#![allow(dead_code)]
+
+use std::path::PathBuf;
+
 use csv::Reader;
+use float_ord::FloatOrd;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use xapian_rs::{Document, Stem, TermGenerator, WritableDatabase};
 
@@ -41,7 +46,7 @@ fn parse<T: DeserializeOwned>(data: &[u8]) -> Vec<T> {
         .expect("Malformed CSV data")
 }
 
-fn museum_objects() -> Vec<MuseumRecord> {
+pub fn museum_objects() -> Vec<MuseumRecord> {
     parse(include_bytes!("data/100-objects.csv"))
 }
 
@@ -49,7 +54,7 @@ pub fn us_states() -> Vec<StateRecord> {
     parse(include_bytes!("data/states.csv"))
 }
 
-pub fn seed_objects(path: impl Into<Option<String>>) -> WritableDatabase {
+pub fn seed_objects(path: impl Into<Option<PathBuf>>) -> WritableDatabase {
     let mut db = path.into().map_or_else(WritableDatabase::inmemory, |path| {
         WritableDatabase::open(path, None, None)
     });
@@ -71,6 +76,30 @@ pub fn seed_objects(path: impl Into<Option<String>>) -> WritableDatabase {
         let data = serde_json::to_string(&item).unwrap();
         doc.set_data(&data);
 
+        if let Some(largest_measurement) = item
+            .measurements
+            .is_empty()
+            .then(|| {
+                item.measurements
+                    .split(&[' ', '\t', '\n', '"'])
+                    .filter_map(|s| s.parse::<f64>().ok().map(FloatOrd))
+                    .max()
+                    .map(|f| f.0)
+            })
+            .flatten()
+        {
+            doc.set_value(0, largest_measurement);
+        }
+
+        if let Some(year) = item
+            .date_made
+            .split(&[' ', '\t', '\n', '"', '-'])
+            .filter_map(|s| s.parse::<i32>().ok())
+            .next()
+        {
+            doc.set_value(1, year)
+        }
+
         let idterm = format!("Q:{}", &item.id_number);
         doc.add_boolean_term(&idterm);
 
@@ -80,7 +109,7 @@ pub fn seed_objects(path: impl Into<Option<String>>) -> WritableDatabase {
     db
 }
 
-pub fn seed_states(path: impl Into<Option<String>>) -> WritableDatabase {
+pub fn seed_states(path: impl Into<Option<PathBuf>>) -> WritableDatabase {
     let mut db = path.into().map_or_else(WritableDatabase::inmemory, |path| {
         WritableDatabase::open(path, None, None)
     });

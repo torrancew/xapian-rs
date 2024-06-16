@@ -4,7 +4,9 @@ mod common;
 use std::{collections::HashSet, path::PathBuf};
 
 use clap::Parser;
-use xapian_rs::{Database, Enquire, QueryParser, Stem, Stopper};
+use xapian_rs::{
+    Database, Enquire, NumberRangeProcessor, QueryParser, RangeProcessorFlags, Stem, Stopper,
+};
 
 #[derive(Parser)]
 struct Args {
@@ -38,6 +40,16 @@ fn main() -> anyhow::Result<()> {
 
     let mut qp = QueryParser::default();
     qp.add_prefix("description", "XD:");
+
+    let mut date_proc = NumberRangeProcessor::new(
+        0,
+        "mm",
+        RangeProcessorFlags::SUFFIX | RangeProcessorFlags::REPEATED,
+    );
+    let mut size_proc = NumberRangeProcessor::new(1, "year:", RangeProcessorFlags::default());
+
+    qp.add_rangeprocessor(size_proc.upcast(), None);
+    qp.add_rangeprocessor(date_proc.upcast(), None);
 
     qp.set_stemmer(stemmer);
     qp.set_stopper(stopper);

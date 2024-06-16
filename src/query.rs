@@ -10,6 +10,7 @@ use autocxx::{cxx, prelude::*};
 
 #[repr(u32)]
 #[non_exhaustive]
+#[derive(PartialEq)]
 pub enum Operator {
     And = 0,
     Or,
@@ -94,19 +95,74 @@ impl From<ffi::Query_op> for Operator {
     }
 }
 
+#[derive(Clone)]
 pub struct Query(Pin<Box<ffi::Query>>);
 
 impl Query {
-    pub(crate) fn new(ptr: Pin<Box<ffi::Query>>) -> Self {
+    pub(crate) fn from_ffi(ptr: Pin<Box<ffi::Query>>) -> Self {
         Self(ptr)
+    }
+
+    pub(crate) fn invalid() -> Self {
+        Self(ffi::Query::new13(Operator::Invalid.into()).within_box())
     }
 
     pub fn combine(op: Operator, a: impl AsRef<ffi::Query>, b: impl AsRef<ffi::Query>) -> Self {
         Self(ffi::Query::new7(op.into(), a.as_ref(), b.as_ref()).within_box())
     }
 
+    pub fn value_ge(slot: impl Into<crate::Slot>, lower: impl crate::ffi::ToCxxString) -> Self {
+        Self(
+            ffi::Query::new9(
+                Operator::ValueGe.into(),
+                ffi::valueno::from(slot.into()),
+                &lower.to_cxx_string(),
+            )
+            .within_box(),
+        )
+    }
+
+    pub fn value_le(slot: impl Into<crate::Slot>, upper: impl crate::ffi::ToCxxString) -> Self {
+        Self(
+            ffi::Query::new9(
+                Operator::ValueLe.into(),
+                ffi::valueno::from(slot.into()),
+                &upper.to_cxx_string(),
+            )
+            .within_box(),
+        )
+    }
+
+    pub fn value_range(
+        slot: impl Into<crate::Slot>,
+        lower: impl crate::ffi::ToCxxString,
+        upper: impl crate::ffi::ToCxxString,
+    ) -> Self {
+        Self(
+            ffi::Query::new10(
+                Operator::ValueRange.into(),
+                ffi::valueno::from(slot.into()),
+                &lower.to_cxx_string(),
+                &upper.to_cxx_string(),
+            )
+            .within_box(),
+        )
+    }
+
+    pub fn is_invalid(&self) -> bool {
+        self.operator() == Operator::Invalid
+    }
+
     pub fn operator(&self) -> Operator {
         self.0.get_type().into()
+    }
+
+    pub fn scale(&self, factor: f64) -> Self {
+        Self(ffi::Query::new5(factor, self.as_ref()).within_box())
+    }
+
+    pub fn subqueries(&self) -> crate::iter::SubqueryIter {
+        crate::iter::SubqueryIter::new(self.as_ref())
     }
 
     pub fn terms(&self) -> crate::iter::TermIter {
@@ -159,6 +215,12 @@ impl Debug for Query {
     }
 }
 
+impl Default for Query {
+    fn default() -> Self {
+        Self(ffi::Query::new().within_box())
+    }
+}
+
 impl Display for Query {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{}", self.0.get_description()))
@@ -198,6 +260,25 @@ impl QueryParser {
         }
     }
 
+    pub fn add_rangeprocessor<'g>(
+        &mut self,
+        range_proc: Pin<&mut ffi::RangeProcessor>,
+        grouping: impl Into<Option<&'g str>>,
+    ) {
+        use crate::ffi::ToCxxString;
+
+        let grouping = grouping
+            .into()
+            .map(|g| g.to_cxx_string().into_raw())
+            .unwrap_or(std::ptr::null_mut());
+
+        unsafe {
+            self.0
+                .as_mut()
+                .add_rangeprocessor(range_proc.release(), grouping)
+        }
+    }
+
     pub fn set_stemmer(&mut self, stemmer: impl AsRef<ffi::Stem>) {
         self.0.as_mut().set_stemmer(stemmer.as_ref())
     }
@@ -227,7 +308,7 @@ impl QueryParser {
         let flags = flags
             .into()
             .unwrap_or(ffi::QueryParser_feature_flag::FLAG_DEFAULT) as u32;
-        Query::new(
+        Query::from_ffi(
             self.0
                 .as_mut()
                 .parse_query(&query, flags.into(), &default_prefix)

@@ -96,6 +96,41 @@ impl Iterator for PositionIter {
     }
 }
 
+pub struct SubqueryIter<'q> {
+    parent: &'q ffi::Query,
+    cursor: usize,
+    length: usize,
+}
+
+impl<'q> SubqueryIter<'q> {
+    pub fn new(query: &'q ffi::Query) -> SubqueryIter {
+        Self {
+            parent: query,
+            cursor: 0,
+            length: query.get_num_subqueries(),
+        }
+    }
+}
+
+impl Iterator for SubqueryIter<'_> {
+    type Item = crate::Query;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        (self.cursor < self.length).then(|| {
+            let query = crate::Query::from_ffi(self.parent.get_subquery(self.cursor).within_box());
+            self.cursor += 1;
+            query
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.length - self.cursor;
+        (remaining, Some(remaining))
+    }
+}
+
+impl ExactSizeIterator for SubqueryIter<'_> {}
+
 pub struct TermIter {
     cursor: Pin<Box<ffi::TermIterator>>,
     end: Pin<Box<ffi::TermIterator>>,

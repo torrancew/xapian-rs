@@ -1,12 +1,14 @@
 mod db;
 
+use std::num::NonZeroU32;
+
 use bytes::Bytes;
 pub use db::{Database, WritableDatabase};
 
 mod doc;
 pub use doc::Document;
 
-pub mod ffi;
+pub(crate) mod ffi;
 
 mod iter;
 
@@ -16,11 +18,84 @@ pub use query::{Query, QueryParser};
 mod search;
 pub use search::{
     DateRangeProcessor, Enquire, MSet, Match, MatchDecider, MatchSpy, NumberRangeProcessor, RSet,
-    RangeProcessor,
+    RangeProcessor, RangeProcessorFlags,
 };
 
 mod term;
 pub use term::{Stem, StemStrategy, Stopper, Term, TermGenerator};
+
+#[derive(Debug, Clone, Copy)]
+pub struct DocCount(ffi::doccount);
+
+impl From<DocCount> for u32 {
+    fn from(value: DocCount) -> Self {
+        value.0.into()
+    }
+}
+
+impl From<DocCount> for ffi::doccount {
+    fn from(value: DocCount) -> Self {
+        value.0
+    }
+}
+
+impl From<u32> for DocCount {
+    fn from(value: u32) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<ffi::doccount> for DocCount {
+    fn from(value: ffi::doccount) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DocCountDiff(ffi::doccount_diff);
+
+impl From<i32> for DocCountDiff {
+    fn from(value: i32) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<ffi::doccount_diff> for DocCountDiff {
+    fn from(value: ffi::doccount_diff) -> Self {
+        Self(value)
+    }
+}
+
+impl From<DocCountDiff> for i32 {
+    fn from(value: DocCountDiff) -> Self {
+        value.0.into()
+    }
+}
+
+impl From<DocCountDiff> for ffi::doccount_diff {
+    fn from(value: DocCountDiff) -> Self {
+        value.0
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DocId(NonZeroU32);
+
+impl DocId {
+    pub fn new(value: impl Into<u32>) -> Option<Self> {
+        NonZeroU32::new(value.into()).map(Self)
+    }
+
+    pub(crate) unsafe fn new_unchecked(value: impl Into<u32>) -> Self {
+        Self(NonZeroU32::new_unchecked(value.into()))
+    }
+}
+
+impl From<DocId> for ffi::docid {
+    fn from(value: DocId) -> Self {
+        u32::from(value.0).into()
+    }
+}
 
 #[derive(Debug)]
 pub struct Position(ffi::termpos);
@@ -49,7 +124,7 @@ impl From<Position> for ffi::termpos {
     }
 }
 
-pub trait ToValue {
+pub trait ToValue: Clone {
     fn serialize(&self) -> Bytes;
 }
 
@@ -112,7 +187,7 @@ impl ToValue for &String {
     }
 }
 
-pub trait FromValue: PartialEq + PartialOrd + Sized {
+pub trait FromValue: Clone + PartialEq + PartialOrd + Sized {
     type Error: std::error::Error;
 
     fn deserialize(value: Bytes) -> Result<Self, Self::Error>;
@@ -167,7 +242,7 @@ impl FromValue for String {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Slot(ffi::valueno);
 
 impl From<u32> for Slot {

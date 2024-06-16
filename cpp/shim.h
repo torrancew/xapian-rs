@@ -27,7 +27,7 @@ namespace shim {
       virtual bool is_stopword(const std::string&) const = 0;
   };
 
-  inline Xapian::RangeProcessor& date_range_processor_downcast(Xapian::DateRangeProcessor &rp) { return rp; }
+  inline Xapian::RangeProcessor& date_range_processor_upcast(Xapian::DateRangeProcessor &rp) { return rp; }
 
   inline Xapian::Document document_copy(const Xapian::Document &doc) { return Xapian::Document(doc); }
 
@@ -44,12 +44,14 @@ namespace shim {
   inline bool mset_iterator_eq(const Xapian::MSetIterator &a, const Xapian::MSetIterator &b) { return a == b; }
   inline void mset_iterator_increment(Xapian::MSetIterator &it) { it++; }
 
-  inline Xapian::RangeProcessor& number_range_processor_downcast(Xapian::NumberRangeProcessor &rp) { return rp; }
+  inline Xapian::RangeProcessor& number_range_processor_upcast(Xapian::NumberRangeProcessor &rp) { return rp; }
 
   inline Xapian::PositionIterator position_iterator_copy(const Xapian::PositionIterator &it) { return Xapian::PositionIterator(it); }
   inline bool position_iterator_eq(const Xapian::PositionIterator &a, const Xapian::PositionIterator &b) { return a == b; }
   inline void position_iterator_increment(Xapian::PositionIterator &it) { it++; }
   inline Xapian::termpos position_iterator_position(const Xapian::PositionIterator &it) { return *it; }
+
+  inline Xapian::Query query_clone(const Xapian::Query &q) { return Xapian::Query(q); }
 
   inline void query_parser_set_stopper(Xapian::QueryParser &qp, const FfiStopper *stopper) { qp.set_stopper(stopper); }
 
@@ -60,7 +62,7 @@ namespace shim {
   inline void term_iterator_increment(Xapian::TermIterator &it) { it++; }
   inline std::string term_iterator_term(const Xapian::TermIterator &it) { return *it; }
 
-  inline const Xapian::Database& writable_database_downcast(const Xapian::WritableDatabase &db) { return db; }
+  inline const Xapian::Database& writable_database_upcast(const Xapian::WritableDatabase &db) { return db; }
 }
 
 #endif
