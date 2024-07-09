@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-autocxx = "0.26.0"
-bitflags = "2.5.0"
+autocxx = "0.27.0"
+bitflags = "2.6.0"
 bytes = "1.6.0"
 cxx = "1.0.122"
 
 [build-dependencies]
-autocxx-build = "0.26.0"
+autocxx-build = "0.27.0"
 miette = { version = "5", features = ["fancy"] }
 
 [dev-dependencies]
