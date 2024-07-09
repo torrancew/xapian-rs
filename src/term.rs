@@ -37,9 +37,39 @@ impl From<ffi::QueryParser_stem_strategy> for StemStrategy {
     }
 }
 
+impl From<ffi::TermGenerator_stem_strategy> for StemStrategy {
+    fn from(value: ffi::TermGenerator_stem_strategy) -> Self {
+        use ffi::TermGenerator_stem_strategy::*;
+        use StemStrategy::*;
+
+        match value {
+            STEM_NONE => None,
+            STEM_SOME => Some,
+            STEM_ALL => All,
+            STEM_ALL_Z => AllZ,
+            STEM_SOME_FULL_POS => SomeFullPos,
+        }
+    }
+}
+
 impl From<StemStrategy> for ffi::QueryParser_stem_strategy {
     fn from(value: StemStrategy) -> Self {
         use ffi::QueryParser_stem_strategy::*;
+        use StemStrategy::*;
+
+        match value {
+            None => STEM_NONE,
+            Some => STEM_SOME,
+            All => STEM_ALL,
+            AllZ => STEM_ALL_Z,
+            SomeFullPos => STEM_SOME_FULL_POS,
+        }
+    }
+}
+
+impl From<StemStrategy> for ffi::TermGenerator_stem_strategy {
+    fn from(value: StemStrategy) -> Self {
+        use ffi::TermGenerator_stem_strategy::*;
         use StemStrategy::*;
 
         match value {
@@ -199,6 +229,10 @@ impl TermGenerator {
             .index_text1(&text, increment.into().unwrap_or(1).into(), &prefix)
     }
 
+    pub fn set_database(&mut self, db: impl AsRef<ffi::WritableDatabase>) {
+        self.0.as_mut().set_database(db.as_ref())
+    }
+
     pub fn set_document(&mut self, doc: impl AsRef<ffi::Document>) {
         self.0.as_mut().set_document(doc.as_ref())
     }
@@ -207,15 +241,8 @@ impl TermGenerator {
         self.0.as_mut().set_stemmer(stem.as_ref())
     }
 
-    pub fn set_stemming_strategy(
-        &mut self,
-        strategy: impl Into<Option<ffi::TermGenerator_stem_strategy>>,
-    ) {
-        self.0.as_mut().set_stemming_strategy(
-            strategy
-                .into()
-                .unwrap_or(ffi::TermGenerator_stem_strategy::STEM_SOME),
-        )
+    pub fn set_stemming_strategy(&mut self, strategy: impl Into<ffi::TermGenerator_stem_strategy>) {
+        self.0.as_mut().set_stemming_strategy(strategy.into())
     }
 }
 

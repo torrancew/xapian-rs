@@ -36,6 +36,24 @@ impl AsRef<ffi::Database> for Database {
     }
 }
 
+impl Clone for Database {
+    fn clone(&self) -> Self {
+        Self(ffi::shim::database_clone(&self.0).within_box())
+    }
+}
+
+impl From<&WritableDatabase> for Database {
+    fn from(value: &WritableDatabase) -> Self {
+        Self(ffi::shim::database_clone(value.as_ref()).within_box())
+    }
+}
+
+impl From<WritableDatabase> for Database {
+    fn from(value: WritableDatabase) -> Self {
+        Self::from(&value)
+    }
+}
+
 pub struct WritableDatabase(Pin<Box<ffi::WritableDatabase>>);
 
 impl Default for WritableDatabase {
@@ -118,6 +136,10 @@ impl WritableDatabase {
         let db: &ffi::Database = self.as_ref();
         cxx::let_cxx_string!(key = key.as_ref());
         cxx_bytes(&db.get_metadata(&key))
+    }
+
+    pub fn read_only(&self) -> Database {
+        Database::from(self)
     }
 
     pub fn remove_spelling(&self, word: impl AsRef<str>, decrement: impl Into<Option<u32>>) {

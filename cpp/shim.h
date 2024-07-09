@@ -27,6 +27,8 @@ namespace shim {
       virtual bool is_stopword(const std::string&) const = 0;
   };
 
+  inline Xapian::Database database_clone(const Xapian::Database &db) { return Xapian::Database(db); }
+
   inline Xapian::RangeProcessor& date_range_processor_upcast(Xapian::DateRangeProcessor &rp) { return rp; }
 
   inline Xapian::Document document_copy(const Xapian::Document &doc) { return Xapian::Document(doc); }
