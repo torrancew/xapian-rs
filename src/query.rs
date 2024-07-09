@@ -103,10 +103,6 @@ impl Query {
         Self(ptr)
     }
 
-    pub(crate) fn invalid() -> Self {
-        Self(ffi::Query::new13(Operator::Invalid.into()).within_box())
-    }
-
     pub fn combine(op: Operator, a: impl AsRef<ffi::Query>, b: impl AsRef<ffi::Query>) -> Self {
         Self(ffi::Query::new7(op.into(), a.as_ref(), b.as_ref()).within_box())
     }
