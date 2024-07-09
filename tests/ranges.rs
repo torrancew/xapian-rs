@@ -30,8 +30,8 @@ fn search_range() {
 
     let query = qp.parse_query::<&str>("clock", None, None);
 
-    let enquire = Enquire::new(museum_db, &query, None);
-    let mset = enquire.mset(0, 10, 10, None, None);
+    let mut enquire = Enquire::new(museum_db);
+    enquire.set_query(&query, None);
 
     let mset = enquire.mset(0, 10, 10, None, None);
     let matches = mset.matches();

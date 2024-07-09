@@ -46,16 +46,8 @@ impl DateRangeProcessor {
 pub struct Enquire(Pin<Box<ffi::Enquire>>);
 
 impl Enquire {
-    pub fn new(
-        db: impl AsRef<ffi::Database>,
-        query: impl AsRef<ffi::Query>,
-        qlen: impl Into<Option<u32>>,
-    ) -> Self {
-        let mut enquire = ffi::Enquire::new2(db.as_ref()).within_box();
-        enquire
-            .as_mut()
-            .set_query(query.as_ref(), qlen.into().unwrap_or(0).into());
-        Self(enquire)
+    pub fn new(db: impl AsRef<ffi::Database>) -> Self {
+        Self(ffi::Enquire::new2(db.as_ref()).within_box())
     }
 
     pub fn add_matchspy<T: crate::MatchSpy + Clone + 'static>(&mut self, spy: &T) {

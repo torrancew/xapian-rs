@@ -66,7 +66,8 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    let enquire = Enquire::new(db, &query, None);
+    let mut enquire = Enquire::new(db);
+    enquire.set_query(&query, None);
     for m in enquire.mset(0, 100, 100, None, decider).matches() {
         println!("{}", m.document());
     }

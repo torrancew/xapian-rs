@@ -62,7 +62,8 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    let mut enquire = Enquire::new(db, &query, None);
+    let mut enquire = Enquire::new(db);
+    enquire.set_query(&query, None);
     enquire.add_matchspy(&spy);
     let results = enquire.mset(0, 100, 100, None, None);
     for (key, count) in spy.stats.borrow().iter() {
