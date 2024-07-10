@@ -2,6 +2,8 @@
 name = "xapian-rs"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Rust bindings for the Xapian search engine"
 
 [dependencies]
 autocxx = "0.27.0"
