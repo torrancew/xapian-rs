@@ -97,6 +97,18 @@ impl From<DocId> for ffi::docid {
     }
 }
 
+impl From<DocId> for NonZeroU32 {
+    fn from(value: DocId) -> Self {
+        value.0
+    }
+}
+
+impl From<DocId> for u32 {
+    fn from(value: DocId) -> Self {
+        u32::from(value.0)
+    }
+}
+
 #[derive(Debug)]
 pub struct Position(ffi::termpos);
 
