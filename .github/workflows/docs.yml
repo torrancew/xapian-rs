@@ -47,6 +47,8 @@ jobs:
         toolchain: stable
         command: doc
         args: --no-deps
+    - name: Generate Index Redirect
+      run: echo '<meta http-equiv="refresh" content="0;url=xapian_rs/index.html">' >target/doc/index.html
     - name: Upload Artifact
       uses: actions/upload-pages-artifact@v3
       with:
