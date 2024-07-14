@@ -24,64 +24,14 @@ pub use search::{
 mod term;
 pub use term::{Stem, StemStrategy, Stopper, Term, TermGenerator};
 
-#[derive(Debug, Clone, Copy)]
-pub struct DocCount(ffi::doccount);
-
-impl From<DocCount> for u32 {
-    fn from(value: DocCount) -> Self {
-        value.0.into()
-    }
-}
-
-impl From<DocCount> for ffi::doccount {
-    fn from(value: DocCount) -> Self {
-        value.0
-    }
-}
-
-impl From<u32> for DocCount {
-    fn from(value: u32) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<ffi::doccount> for DocCount {
-    fn from(value: ffi::doccount) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct DocCountDiff(ffi::doccount_diff);
-
-impl From<i32> for DocCountDiff {
-    fn from(value: i32) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<ffi::doccount_diff> for DocCountDiff {
-    fn from(value: ffi::doccount_diff) -> Self {
-        Self(value)
-    }
-}
-
-impl From<DocCountDiff> for i32 {
-    fn from(value: DocCountDiff) -> Self {
-        value.0.into()
-    }
-}
-
-impl From<DocCountDiff> for ffi::doccount_diff {
-    fn from(value: DocCountDiff) -> Self {
-        value.0
-    }
-}
-
+/// A newtype wrapper representing a valid (non-zero) Xapian document ID
 #[derive(Debug, Clone, Copy)]
 pub struct DocId(NonZeroU32);
 
 impl DocId {
+    /// Attempt to create a `DocId` from the provided `u32`
+    /// Returns `None` if the `u32` is `0`, to match Xapian's
+    /// document ID semantics
     pub fn new(value: impl Into<u32>) -> Option<Self> {
         NonZeroU32::new(value.into()).map(Self)
     }
@@ -136,6 +86,8 @@ impl From<Position> for ffi::termpos {
     }
 }
 
+/// A trait representing the ability to be stored as a Xapian document value. Useful for features
+/// such as faceting and other forms of advanced field-level filtering.
 pub trait ToValue: Clone {
     fn serialize(&self) -> Bytes;
 }
@@ -199,6 +151,7 @@ impl ToValue for &String {
     }
 }
 
+/// A trait representing the ability to be loaded from a Xapian document value.
 pub trait FromValue: Clone + PartialEq + PartialOrd + Sized {
     type Error: std::error::Error;
 
@@ -254,6 +207,7 @@ impl FromValue for String {
     }
 }
 
+/// A newtype wrapper representing a valid Xapian slot number (aka `valueno`)
 #[derive(Debug, Clone, Copy)]
 pub struct Slot(ffi::valueno);
 
@@ -264,13 +218,13 @@ impl From<u32> for Slot {
 }
 
 impl From<Slot> for u32 {
-    fn from(s: Slot) -> Self {
-        s.into()
+    fn from(slot: Slot) -> Self {
+        u32::from(slot.0)
     }
 }
 
 impl From<Slot> for ffi::valueno {
-    fn from(s: Slot) -> Self {
-        s.0
+    fn from(slot: Slot) -> Self {
+        slot.0
     }
 }
