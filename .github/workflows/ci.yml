@@ -16,10 +16,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch:
-          - x86_64
     steps:
     - name: Install dependencies
       run: |
@@ -42,7 +38,7 @@ jobs:
           target/
     - uses: actions-rs/cargo@v1
       with:
-        command: build --all-targets
+        command: build
         toolchain: stable
     - uses: actions-rs/cargo@v1
       with:
