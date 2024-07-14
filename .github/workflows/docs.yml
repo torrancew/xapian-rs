@@ -44,8 +44,9 @@ jobs:
     - name: Build Docs
       uses: actions-rs/cargo@v1
       with:
-        command: doc --no-deps
         toolchain: stable
+        command: doc
+        args: --no-deps
     - name: Upload Artifact
       uses: actions/upload-pages-artifact@v3
       with:
