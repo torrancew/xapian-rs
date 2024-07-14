@@ -1,6 +1,6 @@
 [package]
 name = "xapian-rs"
-version = "0.1.0"
+version = "0.1.1-dev"
 edition = "2021"
 license = "MIT"
 description = "Rust bindings for the Xapian search engine"

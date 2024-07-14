@@ -1,0 +1,64 @@
+name: Build & Publish Documentation
+
+on:
+  push:
+    branches: [ "develop", "main" ]
+    tags: [ "v*" ]
+
+permissions:
+  contents: read
+  packages: none
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+
+jobs:
+  build:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y libxapian-dev
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        override: true
+        toolchain: stable
+        components: clippy
+    - uses: actions/cache@v3
+      with:
+        key: cargo-${{ hashFiles('**/Cargo.lock') }}-ci
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+    - name: Build Docs
+      uses: actions-rs/cargo@v1
+      with:
+        command: doc --no-deps
+        toolchain: stable
+    - name: Upload Artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: 'target/docs'
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+

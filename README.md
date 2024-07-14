@@ -1,7 +1,7 @@
 # xapian-rs
 
 `xapian-rs` provides a set of *low-level*, *mostly-ergonomic* Rust bindings for
-the Xapian(https://xapian.org) search library.
+the [Xapian](https://xapian.org) search library.
 
 The bindings are provided by a mix of auto-generation (via
 [`autocxx`](https://autocxx.rs)) and manually generation (via

@@ -1,0 +1,54 @@
+name: Build and Test Suite
+
+on:
+  push:
+    branches: [ "develop", "main" ]
+  pull_request:
+    branches: [ "develop", "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+  packages: none
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch:
+          - x86_64
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y libxapian-dev
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        override: true
+        toolchain: stable
+        components: clippy
+    - uses: actions/cache@v3
+      with:
+        key: cargo-${{ hashFiles('**/Cargo.lock') }}-ci
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build --all-targets
+        toolchain: stable
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+        toolchain: stable
+    - uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        toolchain: stable
