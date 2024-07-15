@@ -1,4 +1,4 @@
-use crate::ffi;
+use crate::{ffi, DocId};
 
 use std::{
     cell::{Ref, RefCell},
@@ -6,7 +6,6 @@ use std::{
     ops::Deref,
     pin::Pin,
     rc::Rc,
-    string::FromUtf8Error,
 };
 
 use autocxx::{cxx, prelude::*};
@@ -38,11 +37,14 @@ impl DateRangeProcessor {
         )
     }
 
-    pub fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
+    pub(crate) fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
         unsafe { ffi::upcast(self.0.as_mut()) }
     }
 }
 
+/// The primary interface to retrieve information from Xapian.
+///
+/// Used to perform searches, faceting, term iteration, expansion, sorting, relevancy and more.
 pub struct Enquire(Pin<Box<ffi::Enquire>>);
 
 impl Enquire {
@@ -50,11 +52,15 @@ impl Enquire {
         Self(ffi::Enquire::new2(db.as_ref()).within_box())
     }
 
+    /// Attach a [`MatchSpy`] implementation to this `Enquire`
+    ///
+    /// Instances of `MatchSpy` can be used to implement faceting
     pub fn add_matchspy<T: crate::MatchSpy + Clone + 'static>(&mut self, spy: &T) {
         let spy = spy.clone().into_ffi();
         unsafe { ffi::shim::enquire_add_matchspy(self.0.as_mut(), spy.upcast()) }
     }
 
+    /// Retrieve the [`MSet`] for the current [`Query`][crate::Query]
     pub fn mset(
         &self,
         first: u32,
@@ -84,10 +90,12 @@ impl Enquire {
         )
     }
 
+    /// Retrieve the query currently associated with this Enquire instance
     pub fn query(&self) -> crate::Query {
         crate::Query::from_ffi(ffi::shim::query_clone(self.0.get_query()).within_box())
     }
 
+    /// Set the query currently associated with this Enquire instance
     pub fn set_query(&mut self, query: impl AsRef<ffi::Query>, qlen: impl Into<Option<u32>>) {
         self.0
             .as_mut()
@@ -101,6 +109,7 @@ impl AsRef<ffi::Enquire> for Enquire {
     }
 }
 
+/// An individual match item from the iterator yielded by [`MSet::matches`]
 #[derive(Clone)]
 pub struct Match {
     value: ffi::docid,
@@ -113,22 +122,27 @@ impl Match {
         Self { value, ptr }
     }
 
-    pub fn docid(&self) -> u32 {
-        self.value.into()
+    /// Retrieve the [`DocId`][crate::DocId] associated with this Match
+    pub fn docid(&self) -> DocId {
+        unsafe { DocId::new_unchecked(self.value) }
     }
 
+    /// Retrieve the [`Document`][crate::Document] associated with this Match
     pub fn document(&self) -> crate::Document {
         crate::Document::new(self.ptr.get_document().within_box())
     }
 
+    /// Retrieve the weight of this Match, represented as a percentage
     pub fn percent(&self) -> i32 {
         self.ptr.get_percent().into()
     }
 
+    /// Retrieve the [`MSet`] rank of this Match
     pub fn rank(&self) -> u32 {
         self.ptr.get_rank().into()
     }
 
+    /// Retrieve the weight of this Match
     pub fn weight(&self) -> f64 {
         self.ptr.get_weight()
     }
@@ -154,9 +168,12 @@ impl PartialEq for Match {
     }
 }
 
+/// A [`MatchDecider`] can be used to reject documents from an [`MSet`]
 pub trait MatchDecider {
+    /// Decide whether this document should be included in the `MSet`
     fn is_match(&self, doc: &crate::Document) -> bool;
 
+    #[doc(hidden)]
     fn into_ffi(self) -> &'static MatchDeciderWrapper
     where
         Self: Sized + 'static,
@@ -165,6 +182,7 @@ pub trait MatchDecider {
     }
 }
 
+#[doc(hidden)]
 pub struct MatchDeciderWrapper(Rc<RefCell<ffi::RustMatchDecider>>);
 
 impl MatchDeciderWrapper {
@@ -179,9 +197,16 @@ impl<T: MatchDecider + 'static> From<T> for MatchDeciderWrapper {
     }
 }
 
+/// A [`MatchSpy`] can be used to accumulate information seen during the match.
+///
+/// Useful for faceting and generally profiling matching documents
 pub trait MatchSpy {
+    /// Process this [`Document`][crate::Document]
+    ///
+    /// Used to collect any desired data/metadata from the document
     fn observe(&self, doc: &crate::Document, weight: f64);
 
+    #[doc(hidden)]
     fn into_ffi(self) -> &'static mut MatchSpyWrapper
     where
         Self: Sized + 'static,
@@ -189,11 +214,13 @@ pub trait MatchSpy {
         Box::leak(Box::new(MatchSpyWrapper::from(self)))
     }
 
+    /// An optional, human-friendly name for the MatchSpy
     fn name(&self) -> Option<String> {
         None
     }
 }
 
+#[doc(hidden)]
 pub struct MatchSpyWrapper(Rc<RefCell<ffi::RustMatchSpy>>);
 
 impl MatchSpyWrapper {
@@ -209,6 +236,7 @@ impl<T: MatchSpy + 'static> From<T> for MatchSpyWrapper {
     }
 }
 
+/// A list of search results with associated metadata
 pub struct MSet(Pin<Box<ffi::MSet>>);
 
 impl MSet {
@@ -224,14 +252,17 @@ impl MSet {
         self.0.end().within_box()
     }
 
+    /// Convert a weight to a percentage, taking into account weighted query terms
     pub fn convert_to_percent(&self, weight: f64) -> i32 {
         self.0.convert_to_percent(weight).into()
     }
 
+    /// Detects whether this `MSet` is empty
     pub fn empty(&self) -> bool {
         self.0.empty()
     }
 
+    /// Retrieve the iterator of [`Match`] objects for this `MSet`
     pub fn matches(&self) -> crate::iter::MSetIter {
         crate::iter::MSetIter::new(self)
     }
@@ -240,6 +271,14 @@ impl MSet {
         self.0.size().into()
     }
 
+    /// Generate a snippet from the provided `text`
+    ///
+    /// `length` controls the size of the snippet
+    /// `stemmer` should be an instance of the same stemming algorithm used to build the query
+    /// `flags` are used to control specific bits of functionality
+    /// `hl` is an optional pair of string-likes used to highlight matches within the snippet, for use in markup
+    /// `omit` is used to indicate any truncated prefix or suffix
+    /// mid-sen
     pub fn snippet<T, U, V>(
         &self,
         text: impl AsRef<str>,
@@ -248,7 +287,7 @@ impl MSet {
         flags: u32,
         hl: impl Into<Option<(T, U)>>,
         omit: impl Into<Option<V>>,
-    ) -> Result<String, FromUtf8Error>
+    ) -> String
     where
         T: AsRef<str> + Default,
         U: AsRef<str> + Default,
@@ -269,9 +308,10 @@ impl MSet {
             &omit,
         );
 
-        String::from_utf8(Vec::from(text.as_bytes()))
+        text.to_string()
     }
 
+    /// Get the number of documents which `term` occurs in
     pub fn termfreq(&self, term: impl AsRef<str>) -> u32 {
         cxx::let_cxx_string!(term = term.as_ref());
         self.0.get_termfreq(&term).into()
@@ -311,7 +351,7 @@ impl NumberRangeProcessor {
         )
     }
 
-    pub fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
+    pub(crate) fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
         unsafe { ffi::upcast(self.0.as_mut()) }
     }
 }
@@ -375,7 +415,7 @@ impl RangeProcessor {
         )
     }
 
-    pub fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
+    pub(crate) fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
         self.0.as_mut()
     }
 }

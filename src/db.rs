@@ -5,6 +5,7 @@ use std::{path::Path, pin::Pin};
 use autocxx::{cxx, prelude::*};
 use bytes::Bytes;
 
+/// A read-only Xapian database
 pub struct Database(Pin<Box<ffi::Database>>);
 
 impl Database {
@@ -19,11 +20,12 @@ impl Database {
         self.0.as_mut().close()
     }
 
+    /// Get the number of documents stored in the database
     pub fn doc_count(&self) -> u32 {
         self.0.get_doccount().into()
     }
 
-    // Detect whether a given term exists in the database
+    /// Detect whether a given term exists in the database
     pub fn term_exists(&self, term: impl AsRef<[u8]>) -> bool {
         cxx::let_cxx_string!(term = term);
         self.0.term_exists(&term)
@@ -54,10 +56,11 @@ impl From<WritableDatabase> for Database {
     }
 }
 
+/// A Xapian database that can be read or written to
 pub struct WritableDatabase(Pin<Box<ffi::WritableDatabase>>);
 
 impl Default for WritableDatabase {
-    /// Open a new, in-memory WritableDatabase
+    /// Open a new, in-memory [`WritableDatabase`]
     fn default() -> Self {
         Self::inmemory()
     }

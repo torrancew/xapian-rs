@@ -95,6 +95,7 @@ impl From<ffi::Query_op> for Operator {
     }
 }
 
+/// A parsed query, ready for use in a search
 #[derive(Clone)]
 pub struct Query(Pin<Box<ffi::Query>>);
 
@@ -223,6 +224,7 @@ impl Display for Query {
     }
 }
 
+/// A type for building [`Query`] objects from strings
 pub struct QueryParser(Pin<Box<ffi::QueryParser>>);
 
 impl QueryParser {

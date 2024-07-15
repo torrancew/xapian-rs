@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 mod db;
 
 use std::num::NonZeroU32;
@@ -59,6 +60,7 @@ impl From<DocId> for u32 {
     }
 }
 
+/// A newtype wrapper representing a valid document position
 #[derive(Debug)]
 pub struct Position(ffi::termpos);
 

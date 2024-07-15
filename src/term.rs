@@ -14,6 +14,7 @@ use autocxx::{
     prelude::*,
 };
 
+/// A strategy to apply to a `Stem` instance
 pub enum StemStrategy {
     None,
     Some,
@@ -82,9 +83,11 @@ impl From<StemStrategy> for ffi::TermGenerator_stem_strategy {
     }
 }
 
+/// An instance of a Stemming algorithm
 pub struct Stem(Pin<Box<ffi::Stem>>);
 
 impl Stem {
+    /// List all languages with an available Stem instance in the underlying Xapian library
     pub fn languages() -> HashSet<String> {
         ffi::Stem::get_available_languages()
             .to_string()
@@ -93,15 +96,18 @@ impl Stem {
             .collect()
     }
 
+    /// Returns true if this Stem instance is a no-op
     pub fn is_noop(&self) -> bool {
         self.0.is_none()
     }
 
+    /// Returns a stemmer instance for the given language, if one exists
     pub fn for_language(lang: impl AsRef<str>) -> Self {
         cxx::let_cxx_string!(lang = lang.as_ref());
         Self(ffi::Stem::new3(&lang).within_box())
     }
 
+    /// Run the underlying stem algorithm against `word`, returning its stemmed form
     pub fn stem(&self, word: impl AsRef<str>) -> String {
         cxx::let_cxx_string!(word = word.as_ref());
         ffi::shim::stemmer_stem(&self.0, &word).to_string()
@@ -114,9 +120,13 @@ impl AsRef<ffi::Stem> for Stem {
     }
 }
 
+/// Determines whether a given term matches a `stopword`.
+/// Stopwords are not typically indexed or included in parsed queries.
 pub trait Stopper {
+    /// Evaluate whether a given word is a stopword.
     fn is_stopword(&self, word: &str) -> bool;
 
+    #[doc(hidden)]
     fn into_ffi(self) -> &'static StopperWrapper
     where
         Self: Sized + 'static,
@@ -125,10 +135,11 @@ pub trait Stopper {
     }
 }
 
+#[doc(hidden)]
 pub struct StopperWrapper(Rc<RefCell<ffi::RustStopper>>);
 
 impl StopperWrapper {
-    pub fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiStopper> + '_ {
+    pub(crate) fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiStopper> + '_ {
         Ref::map(self.0.borrow(), |s| s.as_ref())
     }
 }
@@ -139,6 +150,7 @@ impl<T: Stopper + 'static> From<T> for StopperWrapper {
     }
 }
 
+/// An individual `term`, with access to position and frequency information
 pub struct Term {
     value: UniquePtr<CxxString>,
     ptr: Pin<Box<ffi::TermIterator>>,
@@ -205,6 +217,7 @@ impl PartialOrd for Term {
     }
 }
 
+/// An instance of a Xapian TermGenerator, which can be used to index text with optional stemming
 pub struct TermGenerator(Pin<Box<ffi::TermGenerator>>);
 
 impl TermGenerator {
