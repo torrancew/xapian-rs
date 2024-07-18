@@ -17,6 +17,7 @@ use bitflags::bitflags;
 pub struct Enquire(Pin<Box<ffi::Enquire>>);
 
 impl Enquire {
+    /// Create a new `Enquire` instance associated with the given `db`
     pub fn new(db: impl AsRef<ffi::Database>) -> Self {
         Self(ffi::Enquire::new2(db.as_ref()).within_box())
     }
@@ -27,6 +28,36 @@ impl Enquire {
     pub fn add_matchspy<T: crate::MatchSpy + Clone + 'static>(&mut self, spy: &T) {
         let spy = spy.clone().into_ffi();
         unsafe { ffi::shim::enquire_add_matchspy(self.0.as_mut(), spy.upcast()) }
+    }
+
+    /// Retrieve the term expansion set for this Enquire
+    ///
+    /// An ESet provides terms which may be relevant to the current query
+    pub fn eset(
+        &self,
+        maxitems: u32,
+        rset: impl AsRef<ffi::RSet>,
+        flags: i32,
+        decider: impl Into<Option<&'static ExpandDeciderWrapper>>,
+        min_wt: f64,
+    ) -> ESet {
+        let decider = decider
+            .into()
+            .map_or(std::ptr::null(), |d| Deref::deref(&d.upcast()) as *const _);
+
+        ESet(
+            unsafe {
+                ffi::shim::enquire_get_eset(
+                    &self.0,
+                    maxitems.into(),
+                    rset.as_ref(),
+                    flags.into(),
+                    decider,
+                    min_wt,
+                )
+            }
+            .within_box(),
+        )
     }
 
     /// Retrieve the [`MSet`] for the current [`Query`][crate::Query]
@@ -75,6 +106,60 @@ impl Enquire {
 impl AsRef<ffi::Enquire> for Enquire {
     fn as_ref(&self) -> &ffi::Enquire {
         &self.0
+    }
+}
+
+/// An [`ExpandDecider`] can be used to reject terms from an [`ESet`]
+pub trait ExpandDecider {
+    /// Decide whether this document should be included in the `MSet`
+    fn should_keep(&self, term: &str) -> bool;
+
+    #[doc(hidden)]
+    fn into_ffi(self) -> &'static ExpandDeciderWrapper
+    where
+        Self: Sized + 'static,
+    {
+        Box::leak(Box::new(ExpandDeciderWrapper::from(self)))
+    }
+}
+
+#[doc(hidden)]
+pub struct ExpandDeciderWrapper(Rc<RefCell<ffi::RustExpandDecider>>);
+
+impl ExpandDeciderWrapper {
+    pub fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiExpandDecider> + '_ {
+        Ref::map(self.0.borrow(), |s| s.as_ref())
+    }
+}
+
+impl<T: ExpandDecider + 'static> From<T> for ExpandDeciderWrapper {
+    fn from(value: T) -> Self {
+        Self(ffi::RustExpandDecider::from_trait(value))
+    }
+}
+
+pub struct ESet(Pin<Box<ffi::ESet>>);
+
+impl ESet {
+    pub(crate) fn begin(&self) -> Pin<Box<ffi::ESetIterator>> {
+        self.0.begin().within_box()
+    }
+
+    pub fn empty(&self) -> bool {
+        self.0.empty()
+    }
+
+    pub(crate) fn end(&self) -> Pin<Box<ffi::ESetIterator>> {
+        self.0.end().within_box()
+    }
+
+    pub fn size(&self) -> u32 {
+        u32::from(self.0.size())
+    }
+
+    /// Retrieve the iterator of [`Match`] objects for this `MSet`
+    pub fn terms(&self) -> crate::iter::ESetIter {
+        crate::iter::ESetIter::new(self)
     }
 }
 
@@ -391,12 +476,20 @@ impl RSet {
         self.0.contains(id.into())
     }
 
+    pub fn empty(&self) -> bool {
+        self.0.empty()
+    }
+
     pub fn remove_document(&mut self, it: impl AsRef<ffi::MSetIterator>) {
         self.0.as_mut().remove_document1(it.as_ref())
     }
 
     pub fn remove_document_by_id(&mut self, id: impl Into<ffi::docid>) {
         self.0.as_mut().remove_document(id.into())
+    }
+
+    pub fn size(&self) -> u32 {
+        self.0.size().into()
     }
 }
 

@@ -18,11 +18,12 @@ pub use query::{Query, QueryParser};
 
 mod search;
 pub use search::{
-    Enquire, MSet, Match, MatchDecider, MatchSpy, NativeRangeProcessor, RSet, RangeProcessorFlags,
+    ESet, Enquire, ExpandDecider, MSet, Match, MatchDecider, MatchSpy, NativeRangeProcessor, RSet,
+    RangeProcessorFlags,
 };
 
 mod term;
-pub use term::{Stem, StemStrategy, Stopper, Term, TermGenerator};
+pub use term::{Expansion, Stem, StemStrategy, Stopper, Term, TermGenerator};
 
 /// A newtype wrapper representing a valid (non-zero) Xapian document ID
 #[derive(Debug, Clone, Copy)]

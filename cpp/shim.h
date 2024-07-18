@@ -4,6 +4,13 @@
 #define _XAPIAN_SHIM_H
 
 namespace shim {
+  class FfiExpandDecider : public Xapian::ExpandDecider {
+    public:
+      FfiExpandDecider() : Xapian::ExpandDecider() {}
+      virtual bool operator()(const std::string &term) const override { return this->should_keep(term); }
+      virtual bool should_keep(const std::string&) const = 0;
+  };
+
   class FfiMatchDecider : public Xapian::MatchDecider {
     public:
       FfiMatchDecider() : Xapian::MatchDecider() {}
@@ -34,11 +41,21 @@ namespace shim {
   inline Xapian::Document document_copy(const Xapian::Document &doc) { return Xapian::Document(doc); }
 
   inline void enquire_add_matchspy( Xapian::Enquire &e, FfiMatchSpy *m) { e.add_matchspy(m); }
+  inline Xapian::ESet enquire_get_eset(
+      const Xapian::Enquire &e, Xapian::termcount maxitems, const Xapian::RSet &rset,
+      int flags, const FfiExpandDecider *decider, double min_wt
+  ) { return e.get_eset(maxitems, rset, flags, decider, min_wt); }
   inline Xapian::MSet enquire_get_mset(
       const Xapian::Enquire &e, Xapian::doccount first,
       Xapian::doccount maxitems,  Xapian::doccount atleast,
       const Xapian::RSet *rset, const FfiMatchDecider *decider
   ) { return e.get_mset(first, maxitems, atleast, rset, decider); }
+
+  inline Xapian::ESetIterator eset_iterator_copy(const Xapian::ESetIterator &it) { return Xapian::ESetIterator(it); }
+  inline void eset_iterator_decrement(Xapian::ESetIterator &it) { it--; }
+  inline bool eset_iterator_eq(const Xapian::ESetIterator &a, const Xapian::ESetIterator &b) { return a == b; }
+  inline void eset_iterator_increment(Xapian::ESetIterator &it) { it++; }
+  inline std::string eset_iterator_term(const Xapian::ESetIterator &it) { return *it; }
 
   inline Xapian::MSetIterator mset_iterator_copy(const Xapian::MSetIterator &it) { return Xapian::MSetIterator(it); }
   inline void mset_iterator_decrement(Xapian::MSetIterator &it) { it--; }
@@ -57,7 +74,11 @@ namespace shim {
 
   inline void query_parser_set_stopper(Xapian::QueryParser &qp, const FfiStopper *stopper) { qp.set_stopper(stopper); }
 
+  inline Xapian::Query range_processor_evaluate_range(Xapian::RangeProcessor &rp, const std::string &start, const std::string &end) { return rp(start, end); }
+
   inline std::string stemmer_stem(const Xapian::Stem &stem, const std::string &word) { return stem(word); }
+
+  inline void term_generator_set_stopper(Xapian::TermGenerator &tg, const FfiStopper *stopper) { return tg.set_stopper(stopper); }
 
   inline Xapian::TermIterator term_iterator_copy(const Xapian::TermIterator &it) { return Xapian::TermIterator(it); }
   inline bool term_iterator_eq(const Xapian::TermIterator &a, const Xapian::TermIterator &b) { return a == b; }

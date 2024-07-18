@@ -4,6 +4,58 @@ use std::pin::Pin;
 
 use autocxx::prelude::*;
 
+pub struct ESetIter<'eset> {
+    size: (u32, u32),
+    cursor_fwd: Pin<Box<ffi::ESetIterator>>,
+    cursor_rev: Pin<Box<ffi::ESetIterator>>,
+    eset: &'eset crate::ESet,
+}
+
+impl<'eset> ESetIter<'eset> {
+    pub(crate) fn new(eset: &'eset crate::ESet) -> Self {
+        let size = (eset.size(), 0);
+        Self {
+            size,
+            cursor_fwd: eset.begin(),
+            cursor_rev: eset.end(),
+            eset,
+        }
+    }
+}
+
+impl<'mset> Iterator for ESetIter<'mset> {
+    type Item = crate::Expansion;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // cursor_fwd starts out pointing to the first element
+        // and therefore it yields an element before incrementing
+        match &mut self.cursor_fwd {
+            x if x == &self.cursor_rev || x == &self.eset.end() => None,
+            c => {
+                let item = crate::Expansion::new(c.clone());
+                ffi::shim::eset_iterator_increment(c.as_mut());
+                self.size.1 += 1;
+                Some(item)
+            }
+        }
+    }
+}
+
+impl<'mset> DoubleEndedIterator for ESetIter<'mset> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        // cursor_rev starts out pointing after the last element
+        // and therefore it decrements before it yields
+        match &mut self.cursor_rev {
+            x if x == &self.cursor_fwd || x == &self.eset.begin() => None,
+            c => {
+                ffi::shim::eset_iterator_decrement(c.as_mut());
+                self.size.1 += 1;
+                Some(crate::Expansion::new(c.clone()))
+            }
+        }
+    }
+}
+
 pub struct MSetIter<'mset> {
     size: (u32, u32),
     cursor_fwd: Pin<Box<ffi::MSetIterator>>,

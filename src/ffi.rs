@@ -38,6 +38,7 @@ include_cpp! {
     block!("Xapian::Stopper")
     block!("Xapian::ValueRangeProcessor")
 
+    subclass!("shim::FfiExpandDecider", RustExpandDecider)
     subclass!("shim::FfiMatchDecider", RustMatchDecider)
     subclass!("shim::FfiMatchSpy", RustMatchSpy)
     subclass!("shim::FfiStopper", RustStopper)
@@ -53,6 +54,8 @@ include_cpp! {
     generate!("Xapian::ExpandDeciderAnd")
     generate!("Xapian::ExpandDeciderFilterPrefix")
     generate!("Xapian::ExpandDeciderFilterTerms")
+    generate!("Xapian::ESet")
+    generate!("Xapian::ESetIterator")
     generate!("Xapian::MSet")
     generate!("Xapian::MSetIterator")
     generate!("Xapian::NumberRangeProcessor")
@@ -64,6 +67,8 @@ include_cpp! {
     generate!("Xapian::SimpleStopper")
     generate!("Xapian::Stem")
     generate!("Xapian::TermGenerator")
+    generate!("Xapian::TermGenerator_stem_strategy")
+    generate!("Xapian::TermGenerator_stop_strategy")
     generate!("Xapian::QueryParser_stem_strategy")
     generate!("Xapian::TermIterator")
     generate!("Xapian::ValueCountMatchSpy")
@@ -75,14 +80,35 @@ include_cpp! {
 }
 
 #[subclass]
+pub struct RustExpandDecider {
+    inner: Pin<Box<dyn crate::ExpandDecider + 'static>>,
+}
+
+impl RustExpandDecider {
+    pub fn from_trait(decider: impl crate::ExpandDecider + 'static) -> Rc<RefCell<Self>> {
+        let me = Self {
+            inner: Box::pin(decider),
+            cpp_peer: Default::default(),
+        };
+        Self::new_rust_owned(me)
+    }
+}
+
+impl shim::FfiExpandDecider_methods for RustExpandDecider {
+    fn should_keep(&self, term: &CxxString) -> bool {
+        self.inner.should_keep(&term.to_string())
+    }
+}
+
+#[subclass]
 pub struct RustMatchDecider {
     inner: Pin<Box<dyn crate::MatchDecider + 'static>>,
 }
 
 impl RustMatchDecider {
-    pub fn from_trait(stopper: impl crate::MatchDecider + 'static) -> Rc<RefCell<Self>> {
+    pub fn from_trait(decider: impl crate::MatchDecider + 'static) -> Rc<RefCell<Self>> {
         let me = Self {
-            inner: Box::pin(stopper),
+            inner: Box::pin(decider),
             cpp_peer: Default::default(),
         };
         Self::new_rust_owned(me)
@@ -153,6 +179,20 @@ impl shim::FfiStopper_methods for RustStopper {
 pub(crate) unsafe fn upcast<S, D>(derived: Pin<&mut D>) -> Pin<&mut S> {
     let ptr = Pin::into_inner_unchecked(derived) as *mut D;
     Pin::new_unchecked(&mut *ptr.cast::<S>())
+}
+
+/// Create a new pinned `Box` containing a copy of this `ESetIterator`
+impl Clone for Pin<Box<ESetIterator>> {
+    fn clone(&self) -> Self {
+        shim::eset_iterator_copy(self).within_box()
+    }
+}
+
+/// Compare two instances of `ESetIterator`
+impl PartialEq for ESetIterator {
+    fn eq(&self, other: &Self) -> bool {
+        shim::eset_iterator_eq(self, other)
+    }
 }
 
 /// Create a new pinned `Box` containing a copy of this `MSetIterator`
