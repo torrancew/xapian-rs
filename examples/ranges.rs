@@ -5,7 +5,7 @@ use std::{collections::HashSet, path::PathBuf};
 
 use clap::Parser;
 use xapian_rs::{
-    Database, Enquire, NumberRangeProcessor, QueryParser, RangeProcessorFlags, Stem, Stopper,
+    Database, Enquire, NativeRangeProcessor, QueryParser, RangeProcessorFlags, Stem, Stopper,
 };
 
 #[derive(Parser)]
@@ -41,12 +41,12 @@ fn main() -> anyhow::Result<()> {
     let mut qp = QueryParser::default();
     qp.add_prefix("description", "XD:");
 
-    let mut date_proc = NumberRangeProcessor::new(
+    let mut date_proc = NativeRangeProcessor::number(
         0,
         "mm",
         RangeProcessorFlags::SUFFIX | RangeProcessorFlags::REPEATED,
     );
-    let mut size_proc = NumberRangeProcessor::new(1, "year:", RangeProcessorFlags::default());
+    let mut size_proc = NativeRangeProcessor::number(1, "year:", RangeProcessorFlags::default());
 
     qp.add_rangeprocessor(size_proc.upcast(), None);
     qp.add_rangeprocessor(date_proc.upcast(), None);

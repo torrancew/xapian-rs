@@ -11,37 +11,6 @@ use std::{
 use autocxx::{cxx, prelude::*};
 use bitflags::bitflags;
 
-pub struct DateRangeProcessor(Pin<Box<ffi::DateRangeProcessor>>);
-
-impl DateRangeProcessor {
-    pub fn new<T>(
-        slot: impl Into<ffi::valueno>,
-        marker_string: impl Into<Option<T>>,
-        flags: impl Into<Option<RangeProcessorFlags>>,
-        epoch_year: impl Into<Option<i32>>,
-    ) -> Self
-    where
-        T: AsRef<str> + Default,
-    {
-        let flags = flags.into().unwrap_or_default();
-        let epoch_year = epoch_year.into().unwrap_or(1970);
-        cxx::let_cxx_string!(marker_string = marker_string.into().unwrap_or_default().as_ref());
-        Self(
-            ffi::DateRangeProcessor::new1(
-                slot.into(),
-                &marker_string,
-                flags.bits().into(),
-                epoch_year.into(),
-            )
-            .within_box(),
-        )
-    }
-
-    pub(crate) fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
-        unsafe { ffi::upcast(self.0.as_mut()) }
-    }
-}
-
 /// The primary interface to retrieve information from Xapian.
 ///
 /// Used to perform searches, faceting, term iteration, expansion, sorting, relevancy and more.
@@ -186,7 +155,7 @@ pub trait MatchDecider {
 pub struct MatchDeciderWrapper(Rc<RefCell<ffi::RustMatchDecider>>);
 
 impl MatchDeciderWrapper {
-    pub(crate) fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiMatchDecider> + '_ {
+    pub fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiMatchDecider> + '_ {
         Ref::map(self.0.borrow(), |s| s.as_ref())
     }
 }
@@ -224,7 +193,7 @@ pub trait MatchSpy {
 pub struct MatchSpyWrapper(Rc<RefCell<ffi::RustMatchSpy>>);
 
 impl MatchSpyWrapper {
-    pub(crate) fn upcast(&mut self) -> *mut ffi::shim::FfiMatchSpy {
+    pub fn upcast(&mut self) -> *mut ffi::shim::FfiMatchSpy {
         use ffi::shim::FfiMatchSpy_methods;
         self.0.borrow_mut().upcast()
     }
@@ -332,10 +301,37 @@ impl Default for RangeProcessorFlags {
     }
 }
 
-pub struct NumberRangeProcessor(Pin<Box<ffi::NumberRangeProcessor>>);
+pub enum NativeRangeProcessor {
+    Date(Pin<Box<ffi::DateRangeProcessor>>),
+    Number(Pin<Box<ffi::NumberRangeProcessor>>),
+    String(Pin<Box<ffi::RangeProcessor>>),
+}
 
-impl NumberRangeProcessor {
-    pub fn new<T>(
+impl NativeRangeProcessor {
+    pub fn date<U>(
+        slot: impl Into<ffi::valueno>,
+        marker_string: impl Into<Option<U>>,
+        flags: impl Into<Option<RangeProcessorFlags>>,
+        epoch_year: impl Into<Option<i32>>,
+    ) -> Self
+    where
+        U: AsRef<str> + Default,
+    {
+        let flags = flags.into().unwrap_or_default();
+        let epoch_year = epoch_year.into().unwrap_or(1970);
+        cxx::let_cxx_string!(marker_string = marker_string.into().unwrap_or_default().as_ref());
+        Self::Date(
+            ffi::DateRangeProcessor::new1(
+                slot.into(),
+                &marker_string,
+                flags.bits().into(),
+                epoch_year.into(),
+            )
+            .within_box(),
+        )
+    }
+
+    pub fn number<T>(
         slot: impl Into<ffi::valueno>,
         marker_string: impl Into<Option<T>>,
         flags: impl Into<Option<RangeProcessorFlags>>,
@@ -345,14 +341,34 @@ impl NumberRangeProcessor {
     {
         let flags = flags.into().unwrap_or_default();
         cxx::let_cxx_string!(marker_string = marker_string.into().unwrap_or_default().as_ref());
-        Self(
+        Self::Number(
             ffi::NumberRangeProcessor::new(slot.into(), &marker_string, flags.bits().into())
                 .within_box(),
         )
     }
 
-    pub(crate) fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
-        unsafe { ffi::upcast(self.0.as_mut()) }
+    pub fn string<T>(
+        slot: impl Into<ffi::valueno>,
+        marker_string: impl Into<Option<T>>,
+        flags: impl Into<Option<RangeProcessorFlags>>,
+    ) -> Self
+    where
+        T: AsRef<str> + Default,
+    {
+        let flags = flags.into().unwrap_or_default();
+        cxx::let_cxx_string!(marker_string = marker_string.into().unwrap_or_default().as_ref());
+        Self::String(
+            ffi::RangeProcessor::new2(slot.into(), &marker_string, flags.bits().into())
+                .within_box(),
+        )
+    }
+
+    pub fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
+        match self {
+            Self::Date(rp) => unsafe { ffi::upcast(rp.as_mut()) },
+            Self::Number(rp) => unsafe { ffi::upcast(rp.as_mut()) },
+            Self::String(rp) => rp.as_mut(),
+        }
     }
 }
 
@@ -393,29 +409,5 @@ impl AsRef<ffi::RSet> for RSet {
 impl Default for RSet {
     fn default() -> Self {
         Self(ffi::RSet::new2().within_box())
-    }
-}
-
-pub struct RangeProcessor(Pin<Box<ffi::RangeProcessor>>);
-
-impl RangeProcessor {
-    pub fn new<T>(
-        slot: impl Into<ffi::valueno>,
-        marker_string: impl Into<Option<T>>,
-        flags: impl Into<Option<RangeProcessorFlags>>,
-    ) -> Self
-    where
-        T: AsRef<str> + Default,
-    {
-        let flags = flags.into().unwrap_or_default();
-        cxx::let_cxx_string!(marker_string = marker_string.into().unwrap_or_default().as_ref());
-        Self(
-            ffi::RangeProcessor::new2(slot.into(), &marker_string, flags.bits().into())
-                .within_box(),
-        )
-    }
-
-    pub(crate) fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
-        self.0.as_mut()
     }
 }

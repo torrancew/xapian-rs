@@ -1,7 +1,7 @@
 mod common;
 
 use xapian_rs::{
-    Enquire, NumberRangeProcessor, QueryParser, RangeProcessorFlags, Stem, StemStrategy,
+    Enquire, NativeRangeProcessor, QueryParser, RangeProcessorFlags, Stem, StemStrategy,
 };
 
 #[test]
@@ -14,12 +14,12 @@ fn search_range() {
     qp.add_prefix("title", "S:");
     qp.add_prefix("description", "XD:");
 
-    let size_proc = Box::leak(Box::new(NumberRangeProcessor::new(
+    let size_proc = Box::leak(Box::new(NativeRangeProcessor::number(
         0,
         "mm",
         RangeProcessorFlags::SUFFIX | RangeProcessorFlags::REPEATED,
     )));
-    let year_proc = Box::leak(Box::new(NumberRangeProcessor::new(
+    let year_proc = Box::leak(Box::new(NativeRangeProcessor::number(
         1,
         "year:",
         RangeProcessorFlags::default(),
