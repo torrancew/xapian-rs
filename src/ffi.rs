@@ -6,7 +6,15 @@
 //!
 //! Additionally, this module implements a few basic traits to make comparisons
 //! and C++ object cloning somewhat more accessible to Rust wrappers, a
+
+// These are disabled to silence warnings about generated code we don't directly control
 #![allow(unused_imports)]
+#![allow(clippy::boxed_local)]
+#![allow(clippy::module_inception)]
+#![allow(clippy::needless_lifetimes)]
+#![allow(clippy::new_ret_no_self)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::upper_case_acronyms)]
 
 use std::{any::TypeId, cell::RefCell, fmt::Debug, path::Path, pin::Pin, rc::Rc};
 
