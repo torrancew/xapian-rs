@@ -1,12 +1,44 @@
 use crate::ffi::{self, ToCxxString};
 
 use std::{
+    cell::RefCell,
     fmt::{self, Debug, Display},
     ops::{BitAnd, BitOr, BitXor, Deref},
     pin::Pin,
+    rc::Rc,
 };
 
 use autocxx::{cxx, prelude::*};
+
+/// A [`FieldProcessor`] can be used to customize the handling of query fields
+pub trait FieldProcessor {
+    /// Decide whether this document should be included in the `MSet`
+    fn process(&self, term: &str) -> Option<Query>;
+
+    #[doc(hidden)]
+    fn into_ffi(self) -> &'static mut FieldProcessorWrapper
+    where
+        Self: Sized + 'static,
+    {
+        Box::leak(Box::new(FieldProcessorWrapper::from(self)))
+    }
+}
+
+#[doc(hidden)]
+pub struct FieldProcessorWrapper(Rc<RefCell<ffi::RustFieldProcessor>>);
+
+impl FieldProcessorWrapper {
+    pub fn upcast(&mut self) -> *mut ffi::shim::FfiFieldProcessor {
+        use ffi::shim::FfiFieldProcessor_methods;
+        self.0.borrow_mut().upcast()
+    }
+}
+
+impl<T: FieldProcessor + 'static> From<T> for FieldProcessorWrapper {
+    fn from(value: T) -> Self {
+        Self(ffi::RustFieldProcessor::from_trait(value))
+    }
+}
 
 #[repr(u32)]
 #[non_exhaustive]
@@ -108,6 +140,35 @@ impl Query {
         Self(ffi::Query::new7(op.into(), a.as_ref(), b.as_ref()).within_box())
     }
 
+    pub fn combine_terms(op: Operator, a: impl AsRef<str>, b: impl AsRef<str>) -> Self {
+        cxx::let_cxx_string!(a = a.as_ref());
+        cxx::let_cxx_string!(b = b.as_ref());
+        Self(ffi::Query::new8(op.into(), &a, &b).within_box())
+    }
+
+    pub fn match_all() -> Self {
+        Self::term("", None, None)
+    }
+
+    pub fn match_nothing() -> Self {
+        Self(ffi::Query::new().within_box())
+    }
+
+    pub fn scale(factor: f64, subquery: impl AsRef<ffi::Query>) -> Self {
+        Self(ffi::Query::new5(factor, subquery.as_ref()).within_box())
+    }
+
+    pub fn term(
+        term: impl AsRef<str>,
+        wqf: impl Into<Option<u32>>,
+        pos: impl Into<Option<u32>>,
+    ) -> Self {
+        let wqf = wqf.into().unwrap_or(1);
+        let pos = pos.into().unwrap_or(0);
+        cxx::let_cxx_string!(term = term.as_ref());
+        Self(ffi::Query::new3(&term, wqf.into(), pos.into()).within_box())
+    }
+
     pub fn value_ge(slot: impl Into<crate::Slot>, lower: impl crate::ffi::ToCxxString) -> Self {
         Self(
             ffi::Query::new9(
@@ -152,10 +213,6 @@ impl Query {
 
     pub fn operator(&self) -> Operator {
         self.0.get_type().into()
-    }
-
-    pub fn scale(&self, factor: f64) -> Self {
-        Self(ffi::Query::new5(factor, self.as_ref()).within_box())
     }
 
     pub fn subqueries(&self) -> crate::iter::SubqueryIter {
@@ -235,6 +292,40 @@ impl QueryParser {
         cxx::let_cxx_string!(field = field.as_ref());
         cxx::let_cxx_string!(prefix = prefix.into().unwrap_or_default().as_ref());
         self.0.as_mut().add_prefix(&field, &prefix)
+    }
+
+    pub fn add_custom_prefix<T: crate::FieldProcessor + Clone + 'static>(
+        &mut self,
+        field: impl AsRef<str>,
+        field_proc: T,
+    ) {
+        cxx::let_cxx_string!(field = field.as_ref());
+        let field_proc = field_proc.clone().into_ffi();
+        unsafe { ffi::shim::query_parser_add_prefix(self.0.as_mut(), &field, field_proc.upcast()) }
+    }
+
+    pub fn add_custom_boolean_prefix<T, U>(
+        &mut self,
+        field: impl AsRef<str>,
+        field_proc: T,
+        grouping: impl Into<Option<U>>,
+    ) where
+        T: crate::FieldProcessor + Clone + 'static,
+        U: AsRef<str>,
+    {
+        cxx::let_cxx_string!(field = field.as_ref());
+        let grouping = grouping
+            .into()
+            .map_or(std::ptr::null(), |g| g.as_ref().to_cxx_string().into_raw());
+        let field_proc = field_proc.clone().into_ffi();
+        unsafe {
+            ffi::shim::query_parser_add_boolean_prefix(
+                self.0.as_mut(),
+                &field,
+                field_proc.upcast(),
+                grouping,
+            )
+        }
     }
 
     pub fn add_boolean_prefix<T, U>(

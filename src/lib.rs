@@ -14,7 +14,7 @@ pub(crate) mod ffi;
 mod iter;
 
 mod query;
-pub use query::{Query, QueryParser};
+pub use query::{FieldProcessor, Query, QueryParser};
 
 mod search;
 pub use search::{

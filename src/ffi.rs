@@ -47,6 +47,7 @@ include_cpp! {
     block!("Xapian::ValueRangeProcessor")
 
     subclass!("shim::FfiExpandDecider", RustExpandDecider)
+    subclass!("shim::FfiFieldProcessor", RustFieldProcessor)
     subclass!("shim::FfiMatchDecider", RustMatchDecider)
     subclass!("shim::FfiMatchSpy", RustMatchSpy)
     subclass!("shim::FfiStopper", RustStopper)
@@ -105,6 +106,32 @@ impl RustExpandDecider {
 impl shim::FfiExpandDecider_methods for RustExpandDecider {
     fn should_keep(&self, term: &CxxString) -> bool {
         self.inner.should_keep(&term.to_string())
+    }
+}
+
+#[subclass]
+pub struct RustFieldProcessor {
+    inner: Pin<Box<dyn crate::FieldProcessor + 'static>>,
+}
+
+impl RustFieldProcessor {
+    pub fn from_trait(proc: impl crate::FieldProcessor + 'static) -> Rc<RefCell<Self>> {
+        let me = Self {
+            inner: Box::pin(proc),
+            cpp_peer: Default::default(),
+        };
+        Self::new_rust_owned(me)
+    }
+}
+
+impl shim::FfiFieldProcessor_methods for RustFieldProcessor {
+    fn process(&self, field: &CxxString) -> UniquePtr<Query> {
+        let field = field.to_string();
+        if let Some(query) = self.inner.process(&field) {
+            shim::query_clone(query.as_ref()).within_unique_ptr()
+        } else {
+            Query::new13(Query_op::OP_INVALID).within_unique_ptr()
+        }
     }
 }
 

@@ -11,6 +11,14 @@ namespace shim {
       virtual bool should_keep(const std::string&) const = 0;
   };
 
+  class FfiFieldProcessor : public Xapian::FieldProcessor {
+    public:
+      FfiFieldProcessor() : Xapian::FieldProcessor() {}
+      virtual FfiFieldProcessor* upcast() { return this; }
+      virtual Xapian::Query operator()(const std::string &str) { return this->process(str); }
+      virtual Xapian::Query process(const std::string &str) const = 0;
+  };
+
   class FfiMatchDecider : public Xapian::MatchDecider {
     public:
       FfiMatchDecider() : Xapian::MatchDecider() {}
@@ -73,6 +81,13 @@ namespace shim {
   inline Xapian::Query query_clone(const Xapian::Query &q) { return Xapian::Query(q); }
 
   inline void query_parser_set_stopper(Xapian::QueryParser &qp, const FfiStopper *stopper) { qp.set_stopper(stopper); }
+  inline void query_parser_add_boolean_prefix(
+      Xapian::QueryParser &qp, const std::string &field,
+      FfiFieldProcessor *proc, const std::string *grouping
+  ) { return qp.add_boolean_prefix(field, proc, grouping); }
+  inline void query_parser_add_prefix(Xapian::QueryParser &qp, const std::string &field, FfiFieldProcessor *proc) {
+    return qp.add_prefix(field, proc);
+  }
 
   inline Xapian::Query range_processor_evaluate_range(Xapian::RangeProcessor &rp, const std::string &start, const std::string &end) { return rp(start, end); }
 
