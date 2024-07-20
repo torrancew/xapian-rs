@@ -4,6 +4,12 @@
 #define _XAPIAN_SHIM_H
 
 namespace shim {
+  enum WildcardLimitBehavior {
+    WILDCARD_LIMIT_ERROR = Xapian::Query::WILDCARD_LIMIT_ERROR,
+    WILDCARD_LIMIT_FIRST = Xapian::Query::WILDCARD_LIMIT_FIRST,
+    WILDCARD_LIMIT_MOST_FREQUENT = Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT,
+  };
+
   class FfiExpandDecider : public Xapian::ExpandDecider {
     public:
       FfiExpandDecider() : Xapian::ExpandDecider() {}
@@ -99,6 +105,8 @@ namespace shim {
   inline bool term_iterator_eq(const Xapian::TermIterator &a, const Xapian::TermIterator &b) { return a == b; }
   inline void term_iterator_increment(Xapian::TermIterator &it) { it++; }
   inline std::string term_iterator_term(const Xapian::TermIterator &it) { return *it; }
+
+  inline int wildcard_limit_behavior_to_int(const WildcardLimitBehavior b) { return b; }
 
   inline const Xapian::Database& writable_database_upcast(const Xapian::WritableDatabase &db) { return db; }
 }

@@ -207,6 +207,30 @@ impl Query {
         )
     }
 
+    pub fn wildcard(
+        pattern: impl AsRef<str>,
+        max_expansion: impl Into<Option<u32>>,
+        limit_behavior: impl Into<Option<WildcardLimitBehavior>>,
+        combiner: impl Into<Option<WildcardCombiner>>,
+    ) -> Self {
+        cxx::let_cxx_string!(pattern = pattern.as_ref());
+        let max_expansion = max_expansion.into().unwrap_or(0);
+        let limit_behavior = limit_behavior
+            .into()
+            .unwrap_or(WildcardLimitBehavior::Error);
+        let combiner = combiner.into().unwrap_or(WildcardCombiner::Synonym);
+        Self(
+            ffi::Query::new11(
+                Operator::Wildcard.into(),
+                &pattern,
+                max_expansion.into(),
+                limit_behavior.into(),
+                Operator::from(combiner).into(),
+            )
+            .within_box(),
+        )
+    }
+
     pub fn is_invalid(&self) -> bool {
         self.operator() == Operator::Invalid
     }
@@ -430,5 +454,56 @@ impl AsRef<ffi::QueryParser> for QueryParser {
 impl Default for QueryParser {
     fn default() -> Self {
         Self(ffi::QueryParser::new2().within_box())
+    }
+}
+
+pub enum WildcardCombiner {
+    Synonym,
+    Or,
+    Max,
+}
+
+impl From<WildcardCombiner> for Operator {
+    fn from(value: WildcardCombiner) -> Self {
+        match value {
+            WildcardCombiner::Synonym => Operator::Synonym,
+            WildcardCombiner::Or => Operator::Or,
+            WildcardCombiner::Max => Operator::Max,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum WildcardLimitBehavior {
+    Error,
+    FirstN,
+    MostFrequent,
+}
+
+impl From<WildcardLimitBehavior> for c_int {
+    fn from(value: WildcardLimitBehavior) -> Self {
+        use ffi::shim::WildcardLimitBehavior::*;
+        use WildcardLimitBehavior::*;
+
+        let ffi = match value {
+            Error => WILDCARD_LIMIT_ERROR,
+            FirstN => WILDCARD_LIMIT_FIRST,
+            MostFrequent => WILDCARD_LIMIT_MOST_FREQUENT,
+        };
+
+        ffi::shim::wildcard_limit_behavior_to_int(ffi)
+    }
+}
+
+impl From<ffi::shim::WildcardLimitBehavior> for WildcardLimitBehavior {
+    fn from(value: ffi::shim::WildcardLimitBehavior) -> Self {
+        use ffi::shim::WildcardLimitBehavior::*;
+        use WildcardLimitBehavior::*;
+
+        match value {
+            WILDCARD_LIMIT_ERROR => Error,
+            WILDCARD_LIMIT_FIRST => FirstN,
+            WILDCARD_LIMIT_MOST_FREQUENT => MostFrequent,
+        }
     }
 }
