@@ -56,7 +56,7 @@ pub fn us_states() -> Vec<StateRecord> {
 
 pub fn seed_objects(path: impl Into<Option<PathBuf>>) -> WritableDatabase {
     let mut db = path.into().map_or_else(WritableDatabase::inmemory, |path| {
-        WritableDatabase::open(path, None, None)
+        WritableDatabase::open(path, None, None, None, None)
     });
 
     let mut indexer = TermGenerator::default();
@@ -111,7 +111,7 @@ pub fn seed_objects(path: impl Into<Option<PathBuf>>) -> WritableDatabase {
 
 pub fn seed_states(path: impl Into<Option<PathBuf>>) -> WritableDatabase {
     let mut db = path.into().map_or_else(WritableDatabase::inmemory, |path| {
-        WritableDatabase::open(path, None, None)
+        WritableDatabase::open(path, None, None, None, None)
     });
 
     let mut indexer = TermGenerator::default();

@@ -3,6 +3,7 @@ use crate::ffi::{self, cxx_bytes, ToCxxString};
 use std::{path::Path, pin::Pin};
 
 use autocxx::{cxx, prelude::*};
+use bitflags::bitflags;
 use bytes::Bytes;
 
 /// A read-only Xapian database
@@ -10,8 +11,8 @@ pub struct Database(Pin<Box<ffi::Database>>);
 
 impl Database {
     /// Open a read-only Database at the provided path
-    pub fn open(path: impl AsRef<Path>, flags: impl Into<Option<i32>>) -> Self {
-        let flags = flags.into().unwrap_or(0);
+    pub fn open(path: impl AsRef<Path>, backend: impl Into<Option<DbBackend>>) -> Self {
+        let flags = backend.into().unwrap_or_default();
         Self(ffi::Database::new1(&path.as_ref().to_cxx_string(), flags.into()).within_box())
     }
 
@@ -56,6 +57,51 @@ impl From<WritableDatabase> for Database {
     }
 }
 
+/// A flag indicating how to handle the database already existing (or not)
+#[repr(i32)]
+#[derive(Default)]
+pub enum DbAction {
+    #[default]
+    CreateOrOpen = 0x00,
+    CreateOrOverwrite = 0x01,
+    Create = 0x02,
+    Open = 0x03,
+}
+
+impl From<DbAction> for autocxx::c_int {
+    fn from(value: DbAction) -> Self {
+        (value as i32).into()
+    }
+}
+
+/// The type of backend to use for the database
+#[repr(i32)]
+#[derive(Default)]
+pub enum DbBackend {
+    #[default]
+    Auto = 0x000,
+    Glass = 0x100,
+    Chert = 0x200,
+    Stub = 0x300,
+    InMemory = 0x400,
+}
+
+impl From<DbBackend> for autocxx::c_int {
+    fn from(value: DbBackend) -> Self {
+        (value as i32).into()
+    }
+}
+
+bitflags! {
+    pub struct DbFlags: u32 {
+        const NO_SYNC = 0x04;
+        const FULL_SYNC = 0x08;
+        const DANGEROUS = 0x10;
+        const NO_TERMLIST = 0x20;
+        const RETRY_LOCK = 0x40;
+    }
+}
+
 /// A Xapian database that can be read or written to
 pub struct WritableDatabase(Pin<Box<ffi::WritableDatabase>>);
 
@@ -72,10 +118,16 @@ impl WritableDatabase {
     /// Automatically selects the appropriate backend to use
     pub fn open(
         path: impl AsRef<Path>,
-        flags: impl Into<Option<i32>>,
+        action: impl Into<Option<DbAction>>,
+        backend: impl Into<Option<DbBackend>>,
+        flags: impl Into<Option<DbFlags>>,
         block_size: impl Into<Option<i32>>,
     ) -> Self {
-        let flags = flags.into().unwrap_or(0);
+        let action = action.into().unwrap_or_default();
+        let backend = backend.into().unwrap_or_default();
+        let flags = flags.into().map(|f| f.bits()).unwrap_or(0);
+        let flags = action as i32 | backend as i32 | flags as i32;
+
         let block_size = block_size.into().unwrap_or(0);
         Self(
             ffi::WritableDatabase::new1(
