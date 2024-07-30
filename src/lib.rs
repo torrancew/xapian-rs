@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 #![doc = include_str!("../README.md")]
 mod db;
 
@@ -91,6 +92,7 @@ impl From<Position> for ffi::termpos {
 /// A trait representing the ability to be stored as a Xapian document value. Useful for features
 /// such as faceting and other forms of advanced field-level filtering.
 pub trait ToValue: Clone {
+    /// Serialize an instance of this type into a byte buffer
     fn serialize(&self) -> Bytes;
 }
 
@@ -155,8 +157,10 @@ impl ToValue for &String {
 
 /// A trait representing the ability to be loaded from a Xapian document value.
 pub trait FromValue: Clone + PartialEq + PartialOrd + Sized {
+    /// The error type returned if deserialization fails
     type Error: std::error::Error;
 
+    /// Attempt to deserialize the provided bytes into an instance of this type
     fn deserialize(value: Bytes) -> Result<Self, Self::Error>;
 }
 

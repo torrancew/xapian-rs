@@ -26,6 +26,7 @@ impl Expansion {
         Self { value, ptr }
     }
 
+    /// Get the weight of this term
     pub fn weight(&self) -> f64 {
         self.ptr.get_weight()
     }
@@ -76,10 +77,19 @@ impl PartialOrd for Expansion {
 }
 /// A strategy to apply to a `Stem` instance
 pub enum StemStrategy {
+    /// Generate only unstemmed terms
     None,
+    /// Generate both stemmed () and unstemmed terms.
+    /// Stemmed terms are prefixed with `Z`.
+    /// Unstemmed terms contain no positional information.
     Some,
+    /// Generate only stemmed terms, with no `Z` prefix.
     All,
+    /// Generate only stemmed terms, prefixed with a `Z`.
     AllZ,
+    /// Generate both stemmed () and unstemmed terms.
+    /// Stemmed terms are prefixed with `Z`.
+    /// All terms contain positional information.
     SomeFullPos,
 }
 
@@ -266,14 +276,22 @@ impl Term {
         Self { value, ptr }
     }
 
+    /// Get the frequency of this term
+    pub fn frequency(&self) -> u32 {
+        self.ptr.get_termfreq().into()
+    }
+
+    /// Get the number of occurrences of this term
     pub fn positions_len(&self) -> u32 {
         self.ptr.positionlist_count().into()
     }
 
+    /// Get an iterator over the specific occurrences of this term
     pub fn positions(&self) -> crate::iter::PositionIter {
         crate::iter::PositionIter::new(self)
     }
 
+    /// Get the within-document-frequency for this term
     pub fn wdf(&self) -> u32 {
         self.ptr.get_wdf().into()
     }
@@ -325,12 +343,19 @@ impl PartialOrd for Term {
 pub struct TermGenerator(Pin<Box<ffi::TermGenerator>>);
 
 impl TermGenerator {
+    /// Increase the term position used when indexing index_text
+    ///
+    /// Useful to keep phrases from spanning logically separate regions of text
     pub fn increase_termpos(&mut self, delta: impl Into<Option<u32>>) {
         self.0
             .as_mut()
             .increase_termpos(delta.into().unwrap_or(100).into());
     }
 
+    /// Index some text
+    ///
+    /// The within-document-frequency for the text will be increased by `increment` (or 1 if `None`)
+    /// If provided, the text will be prefixed with `prefix`
     pub fn index_text<T>(
         &mut self,
         text: impl AsRef<str>,
@@ -346,22 +371,27 @@ impl TermGenerator {
             .index_text1(&text, increment.into().unwrap_or(1).into(), &prefix)
     }
 
+    /// Set the currently active database
     pub fn set_database(&mut self, db: impl AsRef<ffi::WritableDatabase>) {
         self.0.as_mut().set_database(db.as_ref())
     }
 
+    /// Set the currently active document
     pub fn set_document(&mut self, doc: impl AsRef<ffi::Document>) {
         self.0.as_mut().set_document(doc.as_ref())
     }
 
+    /// Set the stemmer to be used when indexing text
     pub fn set_stemmer(&mut self, stem: impl AsRef<ffi::Stem>) {
         self.0.as_mut().set_stemmer(stem.as_ref())
     }
 
+    /// Set the stemming strategy to be used when indexing text
     pub fn set_stemming_strategy(&mut self, strategy: impl Into<ffi::TermGenerator_stem_strategy>) {
         self.0.as_mut().set_stemming_strategy(strategy.into())
     }
 
+    /// Set the stopper to be used when indexing text
     pub fn set_stopper<T: crate::Stopper + 'static>(&mut self, stopper: impl Into<Option<T>>) {
         let stopper = stopper.into().map_or(std::ptr::null(), |s| {
             Deref::deref(&s.into_ffi().upcast()) as *const _
@@ -369,6 +399,7 @@ impl TermGenerator {
         unsafe { ffi::shim::term_generator_set_stopper(self.0.as_mut(), stopper) }
     }
 
+    /// Set the stopper strategy to be used when indexing text
     pub fn set_stopper_strategy(&mut self, strategy: impl Into<ffi::TermGenerator_stop_strategy>) {
         self.0.as_mut().set_stopper_strategy(strategy.into())
     }

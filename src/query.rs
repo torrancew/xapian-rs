@@ -136,28 +136,34 @@ impl Query {
         Self(ptr)
     }
 
+    ///  Construct a `Query` by combining two others with the specified `Operator`
     pub fn combine(op: Operator, a: impl AsRef<ffi::Query>, b: impl AsRef<ffi::Query>) -> Self {
         Self(ffi::Query::new7(op.into(), a.as_ref(), b.as_ref()).within_box())
     }
 
+    /// Construct a `Query` by combining two terms with the specified `Operator`
     pub fn combine_terms(op: Operator, a: impl AsRef<str>, b: impl AsRef<str>) -> Self {
         cxx::let_cxx_string!(a = a.as_ref());
         cxx::let_cxx_string!(b = b.as_ref());
         Self(ffi::Query::new8(op.into(), &a, &b).within_box())
     }
 
+    /// Construct a `Query` that matches any document
     pub fn match_all() -> Self {
         Self::term("", None, None)
     }
 
+    /// Construct a `Query` that matches no documents
     pub fn match_nothing() -> Self {
         Self(ffi::Query::new().within_box())
     }
 
+    /// Scale the weight of the specified `Query` using the given `factor`
     pub fn scale(factor: f64, subquery: impl AsRef<ffi::Query>) -> Self {
         Self(ffi::Query::new5(factor, subquery.as_ref()).within_box())
     }
 
+    /// Construct a `Query` for the given `term`
     pub fn term(
         term: impl AsRef<str>,
         wqf: impl Into<Option<u32>>,
@@ -169,6 +175,7 @@ impl Query {
         Self(ffi::Query::new3(&term, wqf.into(), pos.into()).within_box())
     }
 
+    /// Construct a query for a single-ended value range
     pub fn value_ge(slot: impl Into<crate::Slot>, lower: impl crate::ffi::ToCxxString) -> Self {
         Self(
             ffi::Query::new9(
@@ -180,6 +187,7 @@ impl Query {
         )
     }
 
+    /// Construct a query for a single-ended value range
     pub fn value_le(slot: impl Into<crate::Slot>, upper: impl crate::ffi::ToCxxString) -> Self {
         Self(
             ffi::Query::new9(
@@ -191,6 +199,7 @@ impl Query {
         )
     }
 
+    /// Construct a `Query` for a value range
     pub fn value_range(
         slot: impl Into<crate::Slot>,
         lower: impl crate::ffi::ToCxxString,
@@ -207,6 +216,7 @@ impl Query {
         )
     }
 
+    /// Construct a `Query` for a wildcard queries
     pub fn wildcard(
         pattern: impl AsRef<str>,
         max_expansion: impl Into<Option<u32>>,
@@ -231,18 +241,22 @@ impl Query {
         )
     }
 
+    /// Returns `true` if this `Query` is invalid
     pub fn is_invalid(&self) -> bool {
         self.operator() == Operator::Invalid
     }
 
+    /// Returns the `Operator` for this `Query`
     pub fn operator(&self) -> Operator {
         self.0.get_type().into()
     }
 
+    /// Return an iterator over the subqueries contained in this `Query`
     pub fn subqueries(&self) -> crate::iter::SubqueryIter {
         crate::iter::SubqueryIter::new(self.as_ref())
     }
 
+    /// Return an iterator over the terms contained in this `Query`
     pub fn terms(&self) -> crate::iter::TermIter {
         crate::iter::TermIter::new(
             self.0.get_terms_begin().within_box(),
@@ -250,6 +264,7 @@ impl Query {
         )
     }
 
+    /// Return an iterator over the unique terms contained in this `Query`
     pub fn unique_terms(&self) -> crate::iter::TermIter {
         crate::iter::TermIter::new(
             self.0.get_unique_terms_begin().within_box(),
@@ -309,6 +324,7 @@ impl Display for Query {
 pub struct QueryParser(Pin<Box<ffi::QueryParser>>);
 
 impl QueryParser {
+    /// Add a free-text field term prefix
     pub fn add_prefix<T>(&mut self, field: impl AsRef<str>, prefix: impl Into<Option<T>>)
     where
         T: AsRef<str> + Default,
@@ -318,6 +334,7 @@ impl QueryParser {
         self.0.as_mut().add_prefix(&field, &prefix)
     }
 
+    /// Add a free-text field term prefix backed by a custom [`FieldProcessor`][crate::FieldProcessor]
     pub fn add_custom_prefix<T: crate::FieldProcessor + Clone + 'static>(
         &mut self,
         field: impl AsRef<str>,
@@ -328,6 +345,7 @@ impl QueryParser {
         unsafe { ffi::shim::query_parser_add_prefix(self.0.as_mut(), &field, field_proc.upcast()) }
     }
 
+    /// Register a [`FieldProcessor`][crate::FieldProcessor] for a boolean prefix
     pub fn add_custom_boolean_prefix<T, U>(
         &mut self,
         field: impl AsRef<str>,
@@ -352,6 +370,8 @@ impl QueryParser {
         }
     }
 
+    /// Add a boolean term prefix, allowing the user to restrict a search with a boolean filter
+    /// specified in the free text query
     pub fn add_boolean_prefix<T, U>(
         &mut self,
         field: impl AsRef<str>,
@@ -373,6 +393,7 @@ impl QueryParser {
         }
     }
 
+    /// Register a RangeProcessor
     pub fn add_rangeprocessor<'g>(
         &mut self,
         range_proc: Pin<&mut ffi::RangeProcessor>,
@@ -392,14 +413,17 @@ impl QueryParser {
         }
     }
 
+    /// Set the [`Stem`][crate::Stem] to be used with this `QueryParser`
     pub fn set_stemmer(&mut self, stemmer: impl AsRef<ffi::Stem>) {
         self.0.as_mut().set_stemmer(stemmer.as_ref())
     }
 
+    /// Set the [`StemStrategy`][crate::StemStrategy]
     pub fn set_stemming_strategy(&mut self, strategy: impl Into<ffi::QueryParser_stem_strategy>) {
         self.0.as_mut().set_stemming_strategy(strategy.into())
     }
 
+    /// Set the [`Stopper`][crate::Stopper] to be used with this `QueryParser`
     pub fn set_stopper<T: crate::Stopper + 'static>(&mut self, stopper: impl Into<Option<T>>) {
         let stopper = stopper.into().map_or(std::ptr::null(), |s| {
             Deref::deref(&s.into_ffi().upcast()) as *const _
@@ -407,6 +431,7 @@ impl QueryParser {
         unsafe { ffi::shim::query_parser_set_stopper(self.0.as_mut(), stopper) }
     }
 
+    /// Parse the given query text into a `Query` instance
     pub fn parse_query<T>(
         &mut self,
         query: impl AsRef<str>,
@@ -429,6 +454,7 @@ impl QueryParser {
         )
     }
 
+    /// Return an iterator over terms omitted from the query as stopwords
     pub fn stoplist(&self) -> crate::iter::TermIter {
         crate::iter::TermIter::new(
             self.0.stoplist_begin().within_box(),
@@ -436,6 +462,7 @@ impl QueryParser {
         )
     }
 
+    /// Return an iterator over unstemmed forms of the given stemmed query term
     pub fn unstem(&self, term: impl AsRef<str>) -> crate::iter::TermIter {
         cxx::let_cxx_string!(term = term.as_ref());
         crate::iter::TermIter::new(

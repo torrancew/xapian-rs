@@ -111,7 +111,7 @@ impl AsRef<ffi::Enquire> for Enquire {
 
 /// An [`ExpandDecider`] can be used to reject terms from an [`ESet`]
 pub trait ExpandDecider {
-    /// Decide whether this document should be included in the `MSet`
+    /// Decide whether this term should be included in the `ESet`
     fn should_keep(&self, term: &str) -> bool;
 
     #[doc(hidden)]
@@ -138,6 +138,7 @@ impl<T: ExpandDecider + 'static> From<T> for ExpandDeciderWrapper {
     }
 }
 
+/// An [`ESet`] represents a set of terms that may be useful for expanding the current query
 pub struct ESet(Pin<Box<ffi::ESet>>);
 
 impl ESet {
@@ -145,6 +146,7 @@ impl ESet {
         self.0.begin().within_box()
     }
 
+    /// Returns true if there are no terms in this `ESet`
     pub fn empty(&self) -> bool {
         self.0.empty()
     }
@@ -153,6 +155,7 @@ impl ESet {
         self.0.end().within_box()
     }
 
+    /// Returns the size of this `ESet`
     pub fn size(&self) -> u32 {
         u32::from(self.0.size())
     }
@@ -177,8 +180,8 @@ impl Match {
     }
 
     /// Retrieve the [`DocId`][crate::DocId] associated with this Match
-    pub fn docid(&self) -> DocId {
-        unsafe { DocId::new_unchecked(self.value) }
+    pub fn docid(&self) -> crate::DocId {
+        unsafe { crate::DocId::new_unchecked(self.value) }
     }
 
     /// Retrieve the [`Document`][crate::Document] associated with this Match
@@ -278,6 +281,7 @@ pub trait MatchSpy {
 pub struct MatchSpyWrapper(Rc<RefCell<ffi::RustMatchSpy>>);
 
 impl MatchSpyWrapper {
+    #[doc(hidden)]
     pub fn upcast(&mut self) -> *mut ffi::shim::FfiMatchSpy {
         use ffi::shim::FfiMatchSpy_methods;
         self.0.borrow_mut().upcast()
@@ -321,6 +325,7 @@ impl MSet {
         crate::iter::MSetIter::new(self)
     }
 
+    /// The number of matches in this `MSet`
     pub fn size(&self) -> u32 {
         self.0.size().into()
     }
@@ -373,9 +378,13 @@ impl MSet {
 }
 
 bitflags! {
+    /// A bitflag representation of flags supported by a RangeProcessor
     pub struct RangeProcessorFlags: u32 {
+        /// Treat the given marker string as a suffix instead of a prefix
         const SUFFIX = 1;
+        /// Optionally allow the given marker string on both ends of the range
         const REPEATED = 2;
+        /// Interpret ambiguous dates as Month/Date/Year instead of Date/Month/Year
         const DATE_PREFER_MDY = 4;
     }
 }
@@ -386,13 +395,18 @@ impl Default for RangeProcessorFlags {
     }
 }
 
+/// A newtype wrapper for the three primary built-in RangeProcessors.
 pub enum NativeRangeProcessor {
+    /// A newtype wrapper for a `DateRangeProcessor`
     Date(Pin<Box<ffi::DateRangeProcessor>>),
+    /// A newtype wrapper for a `NumberRangeProcessor`
     Number(Pin<Box<ffi::NumberRangeProcessor>>),
+    /// A newtype wrapper for a `RangeProcessor`
     String(Pin<Box<ffi::RangeProcessor>>),
 }
 
 impl NativeRangeProcessor {
+    /// Create a new `RangeProcessor` that works on date strings
     pub fn date<U>(
         slot: impl Into<ffi::valueno>,
         marker_string: impl Into<Option<U>>,
@@ -416,6 +430,7 @@ impl NativeRangeProcessor {
         )
     }
 
+    /// Create a numeric RangeProcessor
     pub fn number<T>(
         slot: impl Into<ffi::valueno>,
         marker_string: impl Into<Option<T>>,
@@ -432,6 +447,7 @@ impl NativeRangeProcessor {
         )
     }
 
+    /// Create a string-based RangeProcessor
     pub fn string<T>(
         slot: impl Into<ffi::valueno>,
         marker_string: impl Into<Option<T>>,
@@ -448,6 +464,7 @@ impl NativeRangeProcessor {
         )
     }
 
+    #[doc(hidden)]
     pub fn upcast(&mut self) -> Pin<&mut ffi::RangeProcessor> {
         match self {
             Self::Date(rp) => unsafe { ffi::upcast(rp.as_mut()) },
@@ -457,37 +474,48 @@ impl NativeRangeProcessor {
     }
 }
 
+/// An `RSet` is used to hold documents marked as explicitly relevant to the current search
+///
+/// Useful for generating `MSet` and `ESet` instances
 pub struct RSet(Pin<Box<ffi::RSet>>);
 
 impl RSet {
+    /// Add a document to this reference set by way of a `Match`
     pub fn add_document(&mut self, it: impl AsRef<ffi::MSetIterator>) {
         self.0.as_mut().add_document1(it.as_ref())
     }
 
+    /// Add a document to this reference set by way of a [`DocId`][crate::DocId]
     pub fn add_document_by_id(&mut self, id: impl Into<ffi::docid>) {
         self.0.as_mut().add_document(id.into())
     }
 
+    /// Returns `true` if this `RSet` contains the document specified by the given `Match`
     pub fn contains(&self, it: impl AsRef<ffi::MSetIterator>) -> bool {
         self.0.contains1(it.as_ref())
     }
 
+    /// Returns `true` if this `RSet` contains the document specified by the given `id`
     pub fn contains_id(&self, id: impl Into<ffi::docid>) -> bool {
         self.0.contains(id.into())
     }
 
+    /// Returns `true` if this `RSet` is empty
     pub fn empty(&self) -> bool {
         self.0.empty()
     }
 
+    /// Remove the document specified by the given `Match` from this `RSet`
     pub fn remove_document(&mut self, it: impl AsRef<ffi::MSetIterator>) {
         self.0.as_mut().remove_document1(it.as_ref())
     }
 
+    /// Remove the document specified by the given `DocId` from this `RSet`
     pub fn remove_document_by_id(&mut self, id: impl Into<ffi::docid>) {
         self.0.as_mut().remove_document(id.into())
     }
 
+    /// Return the size of this `RSet`
     pub fn size(&self) -> u32 {
         self.0.size().into()
     }
@@ -502,5 +530,25 @@ impl AsRef<ffi::RSet> for RSet {
 impl Default for RSet {
     fn default() -> Self {
         Self(ffi::RSet::new2().within_box())
+    }
+}
+
+impl FromIterator<DocId> for RSet {
+    fn from_iter<T: IntoIterator<Item = DocId>>(iter: T) -> Self {
+        let mut rset = RSet::default();
+        for id in iter {
+            rset.add_document_by_id(id);
+        }
+        rset
+    }
+}
+
+impl FromIterator<Match> for RSet {
+    fn from_iter<T: IntoIterator<Item = Match>>(iter: T) -> Self {
+        let mut rset = RSet::default();
+        for m in iter {
+            rset.add_document(m);
+        }
+        rset
     }
 }

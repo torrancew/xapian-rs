@@ -67,6 +67,9 @@ impl Default for WritableDatabase {
 }
 
 impl WritableDatabase {
+    /// Open a database for updates
+    ///
+    /// Automatically selects the appropriate backend to use
     pub fn open(
         path: impl AsRef<Path>,
         flags: impl Into<Option<i32>>,
@@ -84,79 +87,95 @@ impl WritableDatabase {
         )
     }
 
+    /// Create a new, in-memory WritableDatabase
     pub fn inmemory() -> Self {
         Self(ffi::InMemory::open().within_box())
     }
 
+    /// Add shards from another `WritableDatabase`
     pub fn add_database(&mut self, db: impl AsRef<ffi::WritableDatabase>) {
         self.0.as_mut().add_database(db.as_ref())
     }
 
+    /// Add a new document to the database
     pub fn add_document(&mut self, doc: impl AsRef<ffi::Document>) -> crate::DocId {
         unsafe { crate::DocId::new_unchecked(self.0.as_mut().add_document(doc.as_ref())) }
     }
 
+    /// Add a word to the spelling dictionary
     pub fn add_spelling(&self, word: impl AsRef<str>, increment: impl Into<Option<u32>>) {
         let increment = increment.into().unwrap_or(1);
         cxx::let_cxx_string!(word = word.as_ref());
         self.0.add_spelling(&word, increment.into())
     }
 
+    /// Add a synonym for a term
     pub fn add_synonym(&self, term: impl AsRef<str>, synonym: impl AsRef<str>) {
         cxx::let_cxx_string!(term = term.as_ref());
         cxx::let_cxx_string!(synonym = synonym.as_ref());
         self.0.add_synonym(&term, &synonym);
     }
 
+    /// Begin a transaction
     pub fn begin_transaction(&mut self, flushed: impl Into<Option<bool>>) {
         let flushed = flushed.into().unwrap_or(true);
         self.0.as_mut().begin_transaction(flushed)
     }
 
+    /// Abort the transaction currently in progress
     pub fn cancel_transaction(&mut self) {
         self.0.as_mut().cancel_transaction()
     }
 
+    /// Complete the transaction currently in progress
     pub fn commit_transaction(&mut self) {
         self.0.as_mut().commit_transaction()
     }
 
+    /// Close the database
     pub fn close(&mut self) {
         let db: Pin<&mut ffi::Database> = unsafe { ffi::upcast(self.0.as_mut()) };
         db.close()
     }
 
+    /// Commit any pending modifications made to the database
     pub fn commit(&mut self) {
         self.0.as_mut().commit()
     }
 
+    /// Get the number of documents in the database
     pub fn doc_count(&self) -> u32 {
         let db: &ffi::Database = self.as_ref();
         db.get_doccount().into()
     }
 
+    /// Get the user-specified metadata associated with a given key
     pub fn metadata(&self, key: impl AsRef<str>) -> Bytes {
         let db: &ffi::Database = self.as_ref();
         cxx::let_cxx_string!(key = key.as_ref());
         cxx_bytes(&db.get_metadata(&key))
     }
 
+    /// Retrieve a read-only `Database` instance backed by this `WritableDatabase`
     pub fn read_only(&self) -> Database {
         Database::from(self)
     }
 
+    /// Remove a word from the spelling dictionary
     pub fn remove_spelling(&self, word: impl AsRef<str>, decrement: impl Into<Option<u32>>) {
         let decrement = decrement.into().unwrap_or(1);
         cxx::let_cxx_string!(word = word.as_ref());
         self.0.remove_spelling(&word, decrement.into());
     }
 
+    /// Remove the given synonym for the specified term
     pub fn remove_synonym(&self, term: impl AsRef<str>, synonym: impl AsRef<str>) {
         cxx::let_cxx_string!(term = term.as_ref());
         cxx::let_cxx_string!(synonym = synonym.as_ref());
         self.0.remove_synonym(&term, &synonym);
     }
 
+    /// Replace the document (if any) matching the specified [`DocId`][crate::DocId] from the database with the specified `doc`
     pub fn replace_document(
         &mut self,
         id: impl Into<crate::DocId>,
@@ -167,6 +186,7 @@ impl WritableDatabase {
             .replace_document(ffi::docid::from(id.into()), doc.as_ref())
     }
 
+    /// Replace any documents matching the given term
     pub fn replace_document_by_term(
         &mut self,
         term: impl AsRef<str>,
@@ -179,6 +199,7 @@ impl WritableDatabase {
             .into()
     }
 
+    /// Wrap the function specified in `f` in a transaction
     pub fn transaction(
         &mut self,
         flushed: impl Into<Option<bool>>,
