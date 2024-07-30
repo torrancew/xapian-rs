@@ -143,6 +143,17 @@ impl WritableDatabase {
         self.0.as_mut().commit()
     }
 
+    /// Delete the document (if any) matching the specified [`DocId`][crate::DocId] from the database
+    pub fn delete_document(&mut self, id: impl Into<crate::DocId>) {
+        self.0.as_mut().delete_document(ffi::docid::from(id.into()))
+    }
+
+    /// Delete any documents indexed by the specified term from the database
+    pub fn delete_document_by_term(&mut self, term: impl AsRef<str>) {
+        cxx::let_cxx_string!(term = term.as_ref());
+        self.0.as_mut().delete_document1(&term)
+    }
+
     /// Get the number of documents in the database
     pub fn doc_count(&self) -> u32 {
         let db: &ffi::Database = self.as_ref();
