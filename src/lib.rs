@@ -5,7 +5,7 @@ mod db;
 use std::num::NonZeroU32;
 
 use bytes::Bytes;
-pub use db::{Database, WritableDatabase};
+pub use db::{Database, DbAction, DbBackend, DbFlags, WritableDatabase};
 
 mod doc;
 pub use doc::Document;

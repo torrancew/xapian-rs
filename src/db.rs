@@ -61,10 +61,14 @@ impl From<WritableDatabase> for Database {
 #[repr(i32)]
 #[derive(Default)]
 pub enum DbAction {
+    /// Open the database if it exists, create it otherwise
     #[default]
     CreateOrOpen = 0x00,
+    /// Overwrite the database if it exists, create it otherwise
     CreateOrOverwrite = 0x01,
+    /// Create a new database
     Create = 0x02,
+    /// Open an existing database
     Open = 0x03,
 }
 
@@ -79,10 +83,15 @@ impl From<DbAction> for autocxx::c_int {
 #[derive(Default)]
 pub enum DbBackend {
     #[default]
+    /// Automatically select a backend
     Auto = 0x000,
+    /// Use the Glass backend
     Glass = 0x100,
+    /// Use the Chert backend
     Chert = 0x200,
+    /// Use the stub backend
     Stub = 0x300,
+    /// Use an in-memory database
     InMemory = 0x400,
 }
 
@@ -93,11 +102,17 @@ impl From<DbBackend> for autocxx::c_int {
 }
 
 bitflags! {
+    /// Various flags to modify writable database behavior
     pub struct DbFlags: u32 {
+        /// Don't attempt to ensure changes have hit the disk
         const NO_SYNC = 0x04;
+        /// Try to ensure changes have hit the disk
         const FULL_SYNC = 0x08;
+        /// Update the database in-place
         const DANGEROUS = 0x10;
+        /// Do not create a termlist table when creating the database
         const NO_TERMLIST = 0x20;
+        /// If the database is already locked, retry it
         const RETRY_LOCK = 0x40;
     }
 }
