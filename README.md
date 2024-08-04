@@ -1,10 +1,14 @@
 # xapian-rs
 
+[![GitHub](https://img.shields.io/crates/l/xapian-rs)](https://github.com/torrancew/xapian-rs)
+[![crates.io](https://img.shields.io/crates/d/xapian-rs)](https://crates.io/crates/xapian-rs)
+[![docs.rs](https://docs.rs/xapian-rs/badge.svg)](https://docs.rs/xapian-rs)
+
 `xapian-rs` provides a set of *low-level*, *mostly-ergonomic* Rust bindings for
 the [Xapian](https://xapian.org) search library.
 
 The bindings are provided by a mix of auto-generation (via
-[`autocxx`](https://autocxx.rs)) and manually generation (via
+[`autocxx`](https://autocxx.rs)) and manual generation (via
 [`cxx`](https://cxx.rs)). When necessary, small C++ shims are implemented to
 work around incompatibilities between these tools and the Xapian codebase.
 
@@ -20,9 +24,8 @@ an interesting but small subset of the capabilities of Xapian:
 - Faceting
 
 Some functionality is not provided at this time, including (but not limited to):
-- `ESet`
-- `RSet`
 - `KeyMaker`
+- Custom RangeProcessor implementations
 
 ## Design
 

@@ -1,11 +1,12 @@
 [package]
 name = "xapian-rs"
-version = "0.1.1-dev"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Rust bindings for the Xapian search engine"
-documentation = "https://torrancew.github.io/xapian-rs"
 rust-version = "1.70"
+repository = "https://github.com/torrancew/xapian-rs"
+documentation = "https://torrancew.github.io/xapian-rs"
 
 [dependencies]
 autocxx = "0.27.0"
