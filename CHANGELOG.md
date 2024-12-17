@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## [0.2.1] - 2024-12-16
+
+### Added
+
+- `Operator` is now part of the public API
+
 ## [0.2.0] - 2024-08-03
 
 ### Added
@@ -33,6 +39,7 @@ N/A
 - Support for user-provided MatchSpy and MatchDecider implementations
 - Support for arbitrary types in Xapian document slots
 
-[unreleased]: https://github.com/torrancew/xapian-rs/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/torrancew/xapian-rs/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/torrancew/xapian-rs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/torrancew/xapian-rs/compare/tag/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/torrancew/xapian-rs/releases/tag/v0.1.0

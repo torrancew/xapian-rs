@@ -43,27 +43,56 @@ impl<T: FieldProcessor + 'static> From<T> for FieldProcessorWrapper {
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(PartialEq)]
+/// An [`Operator`] can be used to compose queries in novel ways
+///
+/// See [upstream docs][upstream] for details such as implications on document weighting, etc
+///
+/// [upstream]: https://xapian.org/docs/apidoc/html/classXapian_1_1Query.html#a7e7b6b8ad0c915c2364578dfaaf6100b
 pub enum Operator {
+    /// Only matches documents which match all subqueries
     And = 0,
+    /// Matches documents which match at least one subquery
     Or,
+    /// Matches documents which matches only the first subquery
     AndNot,
+    /// Matches documents which match an odd number of subqueries
     XOr,
+    /// Matches documents which match the first subquery, and takes extra weight from the remaining
+    /// subqueries
     AndMaybe,
+    /// Similar to [`And`], but weight is only taken from the first subquery (often used with
+    /// boolean terms)
     Filter,
+    /// Matches documents where all subqueries match and are near one another
     Near,
+    /// Matches documents where subqueries match, are near one another and in order
     Phrase,
+    /// Matches documents with a value slot in the given range
     ValueRange,
+    /// Scales the weight contributed by a subquery
     ScaleWeight,
+    /// Picks the best N subqueries, and combines them with an [`Or`]
     EliteSet,
+    /// Matches documents with a value slot greater than or equal to the given value
     ValueGe,
+    /// Matches documents with a value slot less than or equal to the given value
     ValueLe,
+    /// Matches documents which match any of the subqueries, but weights them as if they were a
+    /// single term
     Synonym,
+    /// Sets the maximum weight of any subquery
     Max,
+    /// Enables wildcard expansion on subqueries
     Wildcard,
+    /// Represents an invalid query
     Invalid = 99,
+    #[doc(hidden)]
     LeafTerm = 100,
+    #[doc(hidden)]
     LeafPostingSource,
+    #[doc(hidden)]
     LeafMatchAll,
+    #[doc(hidden)]
     LeafMatchNothing,
 }
 
