@@ -162,9 +162,9 @@ pub struct RustMatchSpy {
 }
 
 impl RustMatchSpy {
-    pub fn from_trait(stopper: impl crate::MatchSpy + 'static) -> Rc<RefCell<Self>> {
+    pub fn from_trait(match_spy: impl crate::MatchSpy + 'static) -> Rc<RefCell<Self>> {
         let me = Self {
-            inner: Box::new(stopper),
+            inner: Box::new(match_spy),
             cpp_peer: Default::default(),
         };
         Self::new_rust_owned(me)
