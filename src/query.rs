@@ -270,6 +270,10 @@ impl Query {
         )
     }
 
+    pub(crate) fn invalid() -> Self {
+        Self(ffi::Query::new13(Operator::Invalid.into()).within_box())
+    }
+
     /// Returns `true` if this `Query` is invalid
     pub fn is_invalid(&self) -> bool {
         self.operator() == Operator::Invalid
@@ -291,6 +295,11 @@ impl Query {
             self.0.get_terms_begin().within_box(),
             self.0.get_terms_end().within_box(),
         )
+    }
+
+    #[doc(hidden)]
+    pub(crate) fn to_ffi(&self) -> UniquePtr<ffi::Query> {
+        ffi::shim::query_clone(&self.0).within_unique_ptr()
     }
 
     /// Return an iterator over the unique terms contained in this `Query`

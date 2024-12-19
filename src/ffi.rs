@@ -16,7 +16,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::upper_case_acronyms)]
 
-use std::{any::TypeId, cell::RefCell, fmt::Debug, path::Path, pin::Pin, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, path::Path, pin::Pin, rc::Rc};
 
 use autocxx::{
     cxx::{CxxString, UniquePtr},
@@ -127,11 +127,10 @@ impl RustFieldProcessor {
 impl shim::FfiFieldProcessor_methods for RustFieldProcessor {
     fn process(&self, field: &CxxString) -> UniquePtr<Query> {
         let field = field.to_string();
-        if let Some(query) = self.inner.process(&field) {
-            shim::query_clone(query.as_ref()).within_unique_ptr()
-        } else {
-            Query::new13(Query_op::OP_INVALID).within_unique_ptr()
-        }
+        self.inner
+            .process(&field)
+            .unwrap_or(crate::Query::invalid())
+            .to_ffi()
     }
 }
 
@@ -176,7 +175,7 @@ impl shim::FfiMatchSpy_methods for RustMatchSpy {
     fn name(&self) -> UniquePtr<CxxString> {
         self.inner
             .name()
-            .unwrap_or(format!("{:?}", TypeId::of::<Self>()))
+            .unwrap_or(format!("{:?}", std::any::TypeId::of::<Self>()))
             .to_cxx_string()
     }
 
