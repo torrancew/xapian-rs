@@ -123,6 +123,15 @@ pub trait ExpandDecider {
     }
 }
 
+impl<F> ExpandDecider for F
+where
+    F: Fn(&str) -> bool,
+{
+    fn should_keep(&self, term: &str) -> bool {
+        self(term)
+    }
+}
+
 #[doc(hidden)]
 pub struct ExpandDeciderWrapper(Rc<RefCell<ffi::RustExpandDecider>>);
 
@@ -236,6 +245,15 @@ pub trait MatchDecider {
         Self: Sized + 'static,
     {
         Box::leak(Box::new(MatchDeciderWrapper::from(self)))
+    }
+}
+
+impl<F> MatchDecider for F
+where
+    F: Fn(&crate::Document) -> bool,
+{
+    fn is_match(&self, doc: &crate::Document) -> bool {
+        self(doc)
     }
 }
 
