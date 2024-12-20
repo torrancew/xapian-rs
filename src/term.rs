@@ -237,6 +237,15 @@ pub trait Stopper {
     }
 }
 
+impl<F> Stopper for F
+where
+    F: Fn(&str) -> bool,
+{
+    fn is_stopword(&self, word: &str) -> bool {
+        self(word)
+    }
+}
+
 impl Stopper for HashSet<String> {
     fn is_stopword(&self, word: &str) -> bool {
         self.contains(word)

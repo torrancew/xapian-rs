@@ -24,6 +24,15 @@ pub trait FieldProcessor {
     }
 }
 
+impl<F> FieldProcessor for F
+where
+    F: Fn(&str) -> Option<Query>,
+{
+    fn process(&self, term: &str) -> Option<Query> {
+        self(term)
+    }
+}
+
 #[doc(hidden)]
 pub struct FieldProcessorWrapper(Rc<RefCell<ffi::RustFieldProcessor>>);
 
