@@ -443,10 +443,16 @@ impl QueryParser {
     /// Register a RangeProcessor
     pub fn add_rangeprocessor<'g>(
         &mut self,
-        range_proc: Pin<&mut ffi::RangeProcessor>,
+        marker: impl Into<String>,
+        slot: impl Into<crate::Slot>,
+        range_proc: impl crate::RangeProcessor + 'static,
+        is_suffix: bool,
+        can_repeat: bool,
         grouping: impl Into<Option<&'g str>>,
     ) {
         use crate::ffi::ToCxxString;
+
+        let range_proc = range_proc.to_ffi(slot, marker, is_suffix, can_repeat);
 
         let grouping = grouping
             .into()
@@ -454,9 +460,11 @@ impl QueryParser {
             .unwrap_or(std::ptr::null_mut());
 
         unsafe {
-            self.0
-                .as_mut()
-                .add_rangeprocessor(range_proc.release(), grouping)
+            ffi::shim::query_parser_add_range_processor(
+                self.0.as_mut(),
+                range_proc.upcast(),
+                grouping,
+            )
         }
     }
 

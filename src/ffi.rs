@@ -50,6 +50,7 @@ include_cpp! {
     subclass!("shim::FfiFieldProcessor", RustFieldProcessor)
     subclass!("shim::FfiMatchDecider", RustMatchDecider)
     subclass!("shim::FfiMatchSpy", RustMatchSpy)
+    subclass!("shim::FfiRangeProcessor", RustRangeProcessor)
     subclass!("shim::FfiStopper", RustStopper)
 
     generate!("Xapian::doccount")
@@ -182,6 +183,70 @@ impl shim::FfiMatchSpy_methods for RustMatchSpy {
     fn observe(&mut self, doc: &Document, weight: f64) {
         let doc = crate::Document::new(shim::document_copy(doc).within_box());
         self.inner.observe(&doc, weight)
+    }
+}
+
+#[subclass]
+pub struct RustRangeProcessor {
+    inner: Pin<Box<dyn crate::RangeProcessor + 'static>>,
+    slot: crate::Slot,
+    marker: String,
+    is_suffix: bool,
+    can_repeat: bool,
+}
+
+impl RustRangeProcessor {
+    pub fn new(
+        slot: impl Into<crate::Slot>,
+        marker: impl Into<String>,
+        is_suffix: bool,
+        can_repeat: bool,
+        range_processor: impl crate::RangeProcessor + 'static,
+    ) -> Rc<RefCell<Self>> {
+        let me = Self {
+            is_suffix,
+            can_repeat,
+            slot: slot.into(),
+            marker: marker.into(),
+            inner: Box::pin(range_processor),
+            cpp_peer: Default::default(),
+        };
+        Self::new_rust_owned(me)
+    }
+}
+
+// autocxx cannot generate this constructor as it has mandatory arguments
+impl CppPeerConstructor<ffi::RustRangeProcessorCpp> for RustRangeProcessor {
+    fn make_peer(
+        &mut self,
+        peer_holder: CppSubclassRustPeerHolder<Self>,
+    ) -> UniquePtr<ffi::RustRangeProcessorCpp> {
+        cxx::let_cxx_string!(marker = &self.marker);
+        let mut flags = crate::RangeProcessorFlags::empty();
+        if self.is_suffix {
+            flags |= crate::RangeProcessorFlags::SUFFIX;
+        }
+        if self.can_repeat {
+            flags |= crate::RangeProcessorFlags::REPEATED;
+        }
+
+        ffi::RustRangeProcessorCpp::new(peer_holder, self.slot.into(), marker, flags.bits().into())
+            .within_unique_ptr()
+    }
+}
+
+impl shim::FfiRangeProcessor_methods for RustRangeProcessor {
+    fn process_range(&mut self, begin: &CxxString, end: &CxxString) -> UniquePtr<Query> {
+        match self
+            .inner
+            .process_range(&begin.to_string(), &end.to_string())
+        {
+            (Some(start), None) => crate::Query::value_ge(self.slot, start),
+            (Some(start), Some(end)) => crate::Query::value_range(self.slot, start, end),
+            (None, Some(end)) => crate::Query::value_le(self.slot, end),
+            (None, None) => crate::Query::invalid(),
+        }
+        .to_ffi()
     }
 }
 

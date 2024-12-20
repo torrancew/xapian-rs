@@ -1,3 +1,4 @@
+#include <memory>
 #include <xapian.h>
 
 #ifndef _XAPIAN_SHIM_H
@@ -39,6 +40,14 @@ namespace shim {
       virtual std::string name() const override { return std::string("shim::FfiMatchSpy"); }
       virtual void operator()(const Xapian::Document &doc, double wt) override { return this->observe(doc, wt); }
       virtual void observe(const Xapian::Document&, double) = 0;
+  };
+
+  class FfiRangeProcessor: public Xapian::RangeProcessor {
+    public:
+      FfiRangeProcessor(Xapian::valueno slot, std::string &marker, unsigned flags) : Xapian::RangeProcessor(slot, marker, flags) {}
+      virtual FfiRangeProcessor* upcast() { return this; }
+      virtual Xapian::Query operator()(const std::string &begin, const std::string &end) override { return *(this->process_range(begin, end)); }
+      virtual std::unique_ptr<Xapian::Query> process_range(const std::string&, const std::string&) = 0;
   };
 
   class FfiStopper : public Xapian::Stopper {
@@ -93,6 +102,9 @@ namespace shim {
   ) { return qp.add_boolean_prefix(field, proc, grouping); }
   inline void query_parser_add_prefix(Xapian::QueryParser &qp, const std::string &field, FfiFieldProcessor *proc) {
     return qp.add_prefix(field, proc);
+  }
+  inline void query_parser_add_range_processor(Xapian::QueryParser &qp, FfiRangeProcessor *rp, std::string *grouping) {
+    return qp.add_rangeprocessor(rp, grouping);
   }
 
   inline Xapian::Query range_processor_evaluate_range(Xapian::RangeProcessor &rp, const std::string &start, const std::string &end) { return rp(start, end); }
