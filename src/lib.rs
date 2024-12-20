@@ -1,10 +1,6 @@
 #![warn(missing_docs)]
 #![doc = include_str!("../README.md")]
 mod db;
-
-use std::num::NonZeroU32;
-
-use bytes::Bytes;
 pub use db::{Database, DbAction, DbBackend, DbFlags, WritableDatabase};
 
 mod doc;
@@ -13,18 +9,25 @@ pub use doc::Document;
 pub(crate) mod ffi;
 
 mod iter;
+mod range;
+pub use range::{
+    DateRangeProcessor, DateTimeRangeProcessor, NumberRangeProcessor, RangeProcessor,
+    RangeProcessorFlags, StringRangeProcessor,
+};
 
 mod query;
 pub use query::{FieldProcessor, Operator, Query, QueryParser};
 
 mod search;
-pub use search::{
-    ESet, Enquire, ExpandDecider, MSet, Match, MatchDecider, MatchSpy, NativeRangeProcessor, RSet,
-    RangeProcessorFlags,
-};
+pub use search::{ESet, Enquire, ExpandDecider, MSet, Match, MatchDecider, MatchSpy, RSet};
 
 mod term;
 pub use term::{Expansion, Stem, StemStrategy, Stopper, Term, TermGenerator};
+
+use std::num::NonZeroU32;
+
+use bytes::Bytes;
+use chrono::{NaiveDate, NaiveDateTime};
 
 /// A newtype wrapper representing a valid (non-zero) Xapian document ID
 #[derive(Debug, Clone, Copy)]
@@ -94,6 +97,18 @@ impl From<Position> for ffi::termpos {
 pub trait ToValue: Clone {
     /// Serialize an instance of this type into a byte buffer
     fn serialize(&self) -> Bytes;
+}
+
+impl ToValue for NaiveDate {
+    fn serialize(&self) -> Bytes {
+        self.format("%Y%m%d").to_string().into()
+    }
+}
+
+impl ToValue for NaiveDateTime {
+    fn serialize(&self) -> Bytes {
+        self.format("%Y%m%d%H%M%S").to_string().into()
+    }
 }
 
 impl ToValue for f64 {

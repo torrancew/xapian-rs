@@ -25,7 +25,6 @@ an interesting but small subset of the capabilities of Xapian:
 
 Some functionality is not provided at this time, including (but not limited to):
 - `KeyMaker`
-- Custom RangeProcessor implementations
 
 ## Design
 

@@ -1,12 +1,7 @@
-#[path = "../tests/common.rs"]
-mod common;
-
 use std::{collections::HashSet, path::PathBuf};
 
 use clap::Parser;
-use xapian_rs::{
-    Database, Enquire, NativeRangeProcessor, QueryParser, RangeProcessorFlags, Stem, Stopper,
-};
+use xapian_rs::{Database, Enquire, QueryParser, Stem, Stopper};
 
 #[derive(Parser)]
 struct Args {
@@ -41,15 +36,10 @@ fn main() -> anyhow::Result<()> {
     let mut qp = QueryParser::default();
     qp.add_prefix("description", "XD:");
 
-    let mut date_proc = NativeRangeProcessor::number(
-        0,
-        "mm",
-        RangeProcessorFlags::SUFFIX | RangeProcessorFlags::REPEATED,
-    );
-    let mut size_proc = NativeRangeProcessor::number(1, "year:", RangeProcessorFlags::default());
+    let num_proc = |start: &str, end: &str| (start.parse::<f32>().ok(), end.parse::<f32>().ok());
 
-    qp.add_rangeprocessor(size_proc.upcast(), None);
-    qp.add_rangeprocessor(date_proc.upcast(), None);
+    qp.add_rangeprocessor("mm", 0, num_proc, true, true, None);
+    qp.add_rangeprocessor("year:", 1, num_proc, false, false, None);
 
     qp.set_stemmer(stemmer);
     qp.set_stopper(stopper);
