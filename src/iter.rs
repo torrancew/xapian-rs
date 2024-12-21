@@ -23,7 +23,7 @@ impl<'eset> ESetIter<'eset> {
     }
 }
 
-impl<'mset> Iterator for ESetIter<'mset> {
+impl Iterator for ESetIter<'_> {
     type Item = crate::Expansion;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -41,7 +41,7 @@ impl<'mset> Iterator for ESetIter<'mset> {
     }
 }
 
-impl<'mset> DoubleEndedIterator for ESetIter<'mset> {
+impl DoubleEndedIterator for ESetIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         // cursor_rev starts out pointing after the last element
         // and therefore it decrements before it yields
@@ -75,7 +75,7 @@ impl<'mset> MSetIter<'mset> {
     }
 }
 
-impl<'mset> Iterator for MSetIter<'mset> {
+impl Iterator for MSetIter<'_> {
     type Item = crate::Match;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -93,7 +93,7 @@ impl<'mset> Iterator for MSetIter<'mset> {
     }
 }
 
-impl<'mset> DoubleEndedIterator for MSetIter<'mset> {
+impl DoubleEndedIterator for MSetIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         // cursor_rev starts out pointing after the last element
         // and therefore it decrements before it yields
@@ -155,7 +155,7 @@ pub struct SubqueryIter<'q> {
 }
 
 impl<'q> SubqueryIter<'q> {
-    pub fn new(query: &'q ffi::Query) -> SubqueryIter {
+    pub fn new(query: &'q ffi::Query) -> SubqueryIter<'q> {
         Self {
             parent: query,
             cursor: 0,
