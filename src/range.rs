@@ -4,45 +4,53 @@ use std::{cell::RefCell, rc::Rc};
 
 use bitflags::bitflags;
 
-/// Handle a range of dates
-pub struct DateRangeProcessor;
+#[cfg(feature = "chrono")]
+mod date {
+    use crate::ToValue;
 
-impl RangeProcessor for DateRangeProcessor {
-    fn process_range(
-        &self,
-        start: &str,
-        end: &str,
-    ) -> (Option<bytes::Bytes>, Option<bytes::Bytes>) {
-        (
-            start
-                .parse::<chrono::NaiveDate>()
-                .ok()
-                .map(|d| d.serialize()),
-            end.parse::<chrono::NaiveDate>().ok().map(|d| d.serialize()),
-        )
+    /// Handle a range of dates
+    pub struct DateRangeProcessor;
+
+    impl super::RangeProcessor for DateRangeProcessor {
+        fn process_range(
+            &self,
+            start: &str,
+            end: &str,
+        ) -> (Option<bytes::Bytes>, Option<bytes::Bytes>) {
+            (
+                start
+                    .parse::<chrono::NaiveDate>()
+                    .ok()
+                    .map(|d| d.serialize()),
+                end.parse::<chrono::NaiveDate>().ok().map(|d| d.serialize()),
+            )
+        }
+    }
+
+    /// Handle a range of timestamps
+    pub struct DateTimeRangeProcessor;
+
+    impl super::RangeProcessor for DateTimeRangeProcessor {
+        fn process_range(
+            &self,
+            start: &str,
+            end: &str,
+        ) -> (Option<bytes::Bytes>, Option<bytes::Bytes>) {
+            (
+                start
+                    .parse::<chrono::NaiveDateTime>()
+                    .ok()
+                    .map(|dt| dt.serialize()),
+                end.parse::<chrono::NaiveDateTime>()
+                    .ok()
+                    .map(|dt| dt.serialize()),
+            )
+        }
     }
 }
 
-/// Handle a range of timestamps
-pub struct DateTimeRangeProcessor;
-
-impl RangeProcessor for DateTimeRangeProcessor {
-    fn process_range(
-        &self,
-        start: &str,
-        end: &str,
-    ) -> (Option<bytes::Bytes>, Option<bytes::Bytes>) {
-        (
-            start
-                .parse::<chrono::NaiveDateTime>()
-                .ok()
-                .map(|dt| dt.serialize()),
-            end.parse::<chrono::NaiveDateTime>()
-                .ok()
-                .map(|dt| dt.serialize()),
-        )
-    }
-}
+#[cfg(feature = "chrono")]
+pub use date::*;
 
 /// Handle a numeric range
 pub struct NumberRangeProcessor;
