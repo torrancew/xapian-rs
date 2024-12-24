@@ -4,6 +4,7 @@ use std::pin::Pin;
 
 use autocxx::prelude::*;
 
+#[derive(Clone)]
 pub struct ESetIter<'eset> {
     size: (u32, u32),
     cursor_fwd: Pin<Box<ffi::ESetIterator>>,
@@ -56,6 +57,7 @@ impl DoubleEndedIterator for ESetIter<'_> {
     }
 }
 
+#[derive(Clone)]
 pub struct MSetIter<'mset> {
     size: (u32, u32),
     cursor_fwd: Pin<Box<ffi::MSetIterator>>,
@@ -108,6 +110,7 @@ impl DoubleEndedIterator for MSetIter<'_> {
     }
 }
 
+#[derive(Clone)]
 pub struct PositionIter {
     size: (u32, u32),
     cursor: Pin<Box<ffi::PositionIterator>>,
@@ -148,6 +151,7 @@ impl Iterator for PositionIter {
     }
 }
 
+#[derive(Clone)]
 pub struct SubqueryIter<'q> {
     parent: &'q ffi::Query,
     cursor: usize,
@@ -183,6 +187,7 @@ impl Iterator for SubqueryIter<'_> {
 
 impl ExactSizeIterator for SubqueryIter<'_> {}
 
+#[derive(Clone)]
 pub struct TermIter {
     cursor: Pin<Box<ffi::TermIterator>>,
     end: Pin<Box<ffi::TermIterator>>,

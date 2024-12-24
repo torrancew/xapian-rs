@@ -44,12 +44,11 @@ fn main() -> anyhow::Result<()> {
     let query = qp.parse_query(qstr, None, "S:");
 
     let mut enquire = Enquire::new(db);
-    let mut rset = RSet::default();
     enquire.set_query(&query, None);
-    for (idx, m) in enquire.mset(0, 100, 100, None, None).matches().enumerate() {
-        if idx < 2 {
-            rset.add_document(&m);
-        }
+    let mset = enquire.mset(0, 100, 100, None);
+    let matches = mset.matches();
+    let rset = RSet::from_iter(matches.clone().take(2));
+    for m in matches {
         println!("{}", m.document());
     }
 
