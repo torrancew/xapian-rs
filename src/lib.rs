@@ -10,10 +10,10 @@ pub(crate) mod ffi;
 
 mod iter;
 mod range;
-pub use range::{
-    DateRangeProcessor, DateTimeRangeProcessor, NumberRangeProcessor, RangeProcessor,
-    RangeProcessorFlags, StringRangeProcessor,
-};
+pub use range::{NumberRangeProcessor, RangeProcessor, RangeProcessorFlags, StringRangeProcessor};
+
+#[cfg(feature = "chrono")]
+pub use range::{DateRangeProcessor, DateTimeRangeProcessor};
 
 mod query;
 pub use query::{FieldProcessor, Operator, Query, QueryParser};
@@ -27,7 +27,6 @@ pub use term::{Expansion, Stem, StemStrategy, Stopper, Term, TermGenerator};
 use std::num::NonZeroU32;
 
 use bytes::Bytes;
-use chrono::{NaiveDate, NaiveDateTime};
 
 /// A newtype wrapper representing a valid (non-zero) Xapian document ID
 #[derive(Debug, Clone, Copy)]
@@ -99,13 +98,15 @@ pub trait ToValue: Clone {
     fn serialize(&self) -> Bytes;
 }
 
-impl ToValue for NaiveDate {
+#[cfg(feature = "chrono")]
+impl ToValue for chrono::NaiveDate {
     fn serialize(&self) -> Bytes {
         self.format("%Y%m%d").to_string().into()
     }
 }
 
-impl ToValue for NaiveDateTime {
+#[cfg(feature = "chrono")]
+impl ToValue for chrono::NaiveDateTime {
     fn serialize(&self) -> Bytes {
         self.format("%Y%m%d%H%M%S").to_string().into()
     }
