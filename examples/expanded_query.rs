@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     println!("Consider adding:");
-    for term in enquire.eset(100, rset, 0, decider.into_ffi(), 0.0).terms() {
+    for term in enquire.eset(100, rset, 0, decider, 0.0).terms() {
         println!("\t{term}")
     }
 

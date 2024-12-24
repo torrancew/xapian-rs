@@ -32,17 +32,17 @@ impl Enquire {
     /// Retrieve the term expansion set for this Enquire
     ///
     /// An ESet provides terms which may be relevant to the current query
-    pub fn eset(
+    pub fn eset<D: ExpandDecider + 'static>(
         &self,
         maxitems: u32,
         rset: impl AsRef<ffi::RSet>,
         flags: i32,
-        decider: impl Into<Option<&'static ExpandDeciderWrapper>>,
+        decider: impl Into<Option<D>>,
         min_wt: f64,
     ) -> ESet {
-        let decider = decider
-            .into()
-            .map_or(std::ptr::null(), |d| Deref::deref(&d.upcast()) as *const _);
+        let decider = decider.into().map_or(std::ptr::null(), |d| {
+            Deref::deref(&d.into_ffi().upcast()) as *const _
+        });
 
         ESet(
             unsafe {
@@ -59,21 +59,48 @@ impl Enquire {
         )
     }
 
-    /// Retrieve the [`MSet`] for the current [`Query`][crate::Query]
+    /// Retrieve the [`MSet`] for the current [`Query`][crate::Query] with the default MatchDecider
     pub fn mset(
         &self,
         first: u32,
         maxitems: u32,
         atleast: impl Into<Option<u32>>,
         rset: impl Into<Option<RSet>>,
-        decider: impl Into<Option<&'static MatchDeciderWrapper>>,
     ) -> MSet {
         let rset = rset
             .into()
             .map_or(std::ptr::null(), |r| r.as_ref() as *const _);
-        let decider = decider
+
+        MSet::new(
+            unsafe {
+                ffi::shim::enquire_get_mset(
+                    &self.0,
+                    first.into(),
+                    maxitems.into(),
+                    atleast.into().unwrap_or(0).into(),
+                    rset,
+                    std::ptr::null(),
+                )
+            }
+            .within_box(),
+        )
+    }
+
+    /// Retrieve the [`MSet`] for the current [`Query`][crate::Query] with a custom MatchDecider
+    pub fn mset_with_decider(
+        &self,
+        first: u32,
+        maxitems: u32,
+        atleast: impl Into<Option<u32>>,
+        rset: impl Into<Option<RSet>>,
+        decider: impl MatchDecider + 'static,
+    ) -> MSet {
+        let rset = rset
             .into()
-            .map_or(std::ptr::null(), |d| Deref::deref(&d.upcast()) as *const _);
+            .map_or(std::ptr::null(), |r| r.as_ref() as *const _);
+
+        let decider = Deref::deref(&decider.into_ffi().upcast()) as *const _;
+
         MSet::new(
             unsafe {
                 ffi::shim::enquire_get_mset(

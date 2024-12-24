@@ -21,7 +21,7 @@ fn search_range() {
     let mut enquire = Enquire::new(&museum_db);
     enquire.set_query(&query, None);
 
-    let mset = enquire.mset(0, 10, 10, None, None);
+    let mset = enquire.mset(0, 10, 10, None);
     let matches = mset.matches();
     assert_eq!(matches.count(), 10);
 
@@ -31,7 +31,7 @@ fn search_range() {
     let mut enquire = Enquire::new(museum_db);
     enquire.set_query(&query, None);
 
-    let mset = enquire.mset(0, 10, 10, None, None);
+    let mset = enquire.mset(0, 10, 10, None);
     let matches = mset.matches();
     assert_eq!(matches.count(), 0);
 }

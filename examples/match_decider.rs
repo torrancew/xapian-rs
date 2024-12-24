@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let db = Database::open(args.db.join("museum"), None);
     let qstr = args.queries.join(" ");
-    let decider = RejectDecider::new(1, args.reject).into_ffi();
+    let decider = RejectDecider::new(1, args.reject);
 
     let mut qp = QueryParser::default();
     qp.add_prefix("description", "XD:");
@@ -68,7 +68,10 @@ fn main() -> anyhow::Result<()> {
 
     let mut enquire = Enquire::new(db);
     enquire.set_query(&query, None);
-    for m in enquire.mset(0, 100, 100, None, decider).matches() {
+    for m in enquire
+        .mset_with_decider(0, 100, 100, None, decider)
+        .matches()
+    {
         println!("{}", m.document());
     }
 
