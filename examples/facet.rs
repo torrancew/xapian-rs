@@ -95,13 +95,13 @@ fn main() -> anyhow::Result<()> {
     enquire.set_query(&query, None);
     enquire.add_matchspy(&spy);
     enquire.add_matchspy(&bucket_spy);
-    let results = enquire.mset(0, 100, 100, None, None);
-    for (key, count) in spy.stats.borrow().iter() {
-        eprintln!("spy:{key}={count}")
+    let results = enquire.mset(0, 100, 100, None);
+    for (year, count) in spy.stats.borrow().iter() {
+        eprintln!("spy:{year}={count}")
     }
 
-    for (key, count) in bucket_spy.stats.borrow().iter() {
-        eprintln!("bucket_spy:{key}={count}")
+    for (century, count) in bucket_spy.stats.borrow().iter() {
+        eprintln!("bucket_spy:{century}={count}")
     }
 
     for m in results.matches() {

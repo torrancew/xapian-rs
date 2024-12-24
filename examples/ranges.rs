@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut enquire = Enquire::new(db);
     enquire.set_query(&query, None);
-    for m in enquire.mset(0, 100, 100, None, None).matches() {
+    for m in enquire.mset(0, 100, 100, None).matches() {
         println!("{}", m.document());
     }
 
