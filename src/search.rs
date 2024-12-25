@@ -139,15 +139,15 @@ impl AsRef<ffi::Enquire> for Enquire {
 pub trait ExpandDecider {
     /// Decide whether this term should be included in the `ESet`
     fn should_keep(&self, term: &str) -> bool;
+}
 
-    #[doc(hidden)]
-    fn into_ffi(self) -> &'static ExpandDeciderWrapper
-    where
-        Self: Sized + 'static,
-    {
-        Box::leak(Box::new(ExpandDeciderWrapper::from(self)))
+trait FfiExpandDecider: ExpandDecider + Sized + 'static {
+    fn into_ffi(self) -> &'static ExpandDeciderObj {
+        Box::leak(Box::new(ExpandDeciderObj::from(self)))
     }
 }
+
+impl<D: ExpandDecider + Sized + 'static> FfiExpandDecider for D {}
 
 impl<F> ExpandDecider for F
 where
@@ -158,16 +158,15 @@ where
     }
 }
 
-#[doc(hidden)]
-pub struct ExpandDeciderWrapper(Rc<RefCell<ffi::RustExpandDecider>>);
+struct ExpandDeciderObj(Rc<RefCell<ffi::RustExpandDecider>>);
 
-impl ExpandDeciderWrapper {
+impl ExpandDeciderObj {
     pub fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiExpandDecider> + '_ {
         Ref::map(self.0.borrow(), |s| s.as_ref())
     }
 }
 
-impl<T: ExpandDecider + 'static> From<T> for ExpandDeciderWrapper {
+impl<T: ExpandDecider + 'static> From<T> for ExpandDeciderObj {
     fn from(value: T) -> Self {
         Self(ffi::RustExpandDecider::from_trait(value))
     }
@@ -264,15 +263,15 @@ impl PartialEq for Match {
 pub trait MatchDecider {
     /// Decide whether this document should be included in the `MSet`
     fn is_match(&self, doc: &crate::Document) -> bool;
+}
 
-    #[doc(hidden)]
-    fn into_ffi(self) -> &'static MatchDeciderWrapper
-    where
-        Self: Sized + 'static,
-    {
-        Box::leak(Box::new(MatchDeciderWrapper::from(self)))
+trait FfiMatchDecider: MatchDecider + Sized + 'static {
+    fn into_ffi(self) -> &'static MatchDeciderObj {
+        Box::leak(Box::new(MatchDeciderObj::from(self)))
     }
 }
+
+impl<D: MatchDecider + Sized + 'static> FfiMatchDecider for D {}
 
 impl<F> MatchDecider for F
 where
@@ -283,16 +282,15 @@ where
     }
 }
 
-#[doc(hidden)]
-pub struct MatchDeciderWrapper(Rc<RefCell<ffi::RustMatchDecider>>);
+struct MatchDeciderObj(Rc<RefCell<ffi::RustMatchDecider>>);
 
-impl MatchDeciderWrapper {
+impl MatchDeciderObj {
     pub fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiMatchDecider> + '_ {
         Ref::map(self.0.borrow(), |s| s.as_ref())
     }
 }
 
-impl<T: MatchDecider + 'static> From<T> for MatchDeciderWrapper {
+impl<T: MatchDecider + 'static> From<T> for MatchDeciderObj {
     fn from(value: T) -> Self {
         Self(ffi::RustMatchDecider::from_trait(value))
     }
@@ -307,19 +305,19 @@ pub trait MatchSpy {
     /// Used to collect any desired data/metadata from the document
     fn observe(&self, doc: &crate::Document, weight: f64);
 
-    #[doc(hidden)]
-    fn into_ffi(self) -> &'static mut MatchSpyWrapper
-    where
-        Self: Sized + 'static,
-    {
-        Box::leak(Box::new(MatchSpyWrapper::from(self)))
-    }
-
     /// An optional, human-friendly name for the MatchSpy
     fn name(&self) -> Option<String> {
         None
     }
 }
+
+trait FfiMatchSpy: MatchSpy + Sized + 'static {
+    fn into_ffi(self) -> &'static mut MatchSpyObj {
+        Box::leak(Box::new(MatchSpyObj::from(self)))
+    }
+}
+
+impl<D: MatchSpy + Sized + 'static> FfiMatchSpy for D {}
 
 impl<F> MatchSpy for F
 where
@@ -330,18 +328,16 @@ where
     }
 }
 
-#[doc(hidden)]
-pub struct MatchSpyWrapper(Rc<RefCell<ffi::RustMatchSpy>>);
+struct MatchSpyObj(Rc<RefCell<ffi::RustMatchSpy>>);
 
-impl MatchSpyWrapper {
-    #[doc(hidden)]
+impl MatchSpyObj {
     pub fn upcast(&mut self) -> *mut ffi::shim::FfiMatchSpy {
         use ffi::shim::FfiMatchSpy_methods;
         self.0.borrow_mut().upcast()
     }
 }
 
-impl<T: MatchSpy + 'static> From<T> for MatchSpyWrapper {
+impl<T: MatchSpy + 'static> From<T> for MatchSpyObj {
     fn from(value: T) -> Self {
         Self(ffi::RustMatchSpy::from_trait(value))
     }
