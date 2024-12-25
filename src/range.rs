@@ -75,23 +75,23 @@ pub trait RangeProcessor {
     /// Convert the start and end of the range from a query string into a Query, if possible
     fn process_range(&self, start: &str, end: &str)
         -> (Option<bytes::Bytes>, Option<bytes::Bytes>);
+}
 
-    #[doc(hidden)]
+pub(crate) trait FfiRangeProcessor: RangeProcessor + Sized + 'static {
     fn to_ffi(
         self,
         slot: impl Into<crate::Slot>,
         marker: impl Into<String>,
         is_suffix: bool,
         can_repeat: bool,
-    ) -> &'static mut RangeProcessorWrapper
-    where
-        Self: Sized + 'static,
-    {
-        Box::leak(Box::new(RangeProcessorWrapper::new(
+    ) -> &'static mut RangeProcessorObj {
+        Box::leak(Box::new(RangeProcessorObj::new(
             slot, marker, is_suffix, can_repeat, self,
         )))
     }
 }
+
+impl<P: RangeProcessor + Sized + 'static> FfiRangeProcessor for P {}
 
 impl<F, T> RangeProcessor for F
 where
@@ -126,10 +126,9 @@ impl Default for RangeProcessorFlags {
     }
 }
 
-#[doc(hidden)]
-pub struct RangeProcessorWrapper(Rc<RefCell<ffi::RustRangeProcessor>>);
+pub(crate) struct RangeProcessorObj(Rc<RefCell<ffi::RustRangeProcessor>>);
 
-impl RangeProcessorWrapper {
+impl RangeProcessorObj {
     pub fn upcast(&mut self) -> *mut ffi::shim::FfiRangeProcessor {
         use ffi::shim::FfiRangeProcessor_methods;
         self.0.borrow_mut().upcast()

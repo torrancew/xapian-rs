@@ -14,15 +14,15 @@ use autocxx::{cxx, prelude::*};
 pub trait FieldProcessor {
     /// Decide whether this document should be included in the `MSet`
     fn process(&self, term: &str) -> Option<Query>;
+}
 
-    #[doc(hidden)]
-    fn into_ffi(self) -> &'static mut FieldProcessorWrapper
-    where
-        Self: Sized + 'static,
-    {
-        Box::leak(Box::new(FieldProcessorWrapper::from(self)))
+trait FfiFieldProcessor: FieldProcessor + Sized + 'static {
+    fn into_ffi(self) -> &'static mut FieldProcessorObj {
+        Box::leak(Box::new(FieldProcessorObj::from(self)))
     }
 }
+
+impl<P: FieldProcessor + Sized + 'static> FfiFieldProcessor for P {}
 
 impl<F> FieldProcessor for F
 where
@@ -33,17 +33,16 @@ where
     }
 }
 
-#[doc(hidden)]
-pub struct FieldProcessorWrapper(Rc<RefCell<ffi::RustFieldProcessor>>);
+struct FieldProcessorObj(Rc<RefCell<ffi::RustFieldProcessor>>);
 
-impl FieldProcessorWrapper {
+impl FieldProcessorObj {
     pub fn upcast(&mut self) -> *mut ffi::shim::FfiFieldProcessor {
         use ffi::shim::FfiFieldProcessor_methods;
         self.0.borrow_mut().upcast()
     }
 }
 
-impl<T: FieldProcessor + 'static> From<T> for FieldProcessorWrapper {
+impl<T: FieldProcessor + 'static> From<T> for FieldProcessorObj {
     fn from(value: T) -> Self {
         Self(ffi::RustFieldProcessor::from_trait(value))
     }
@@ -306,7 +305,6 @@ impl Query {
         )
     }
 
-    #[doc(hidden)]
     pub(crate) fn to_ffi(&self) -> UniquePtr<ffi::Query> {
         ffi::shim::query_clone(&self.0).within_unique_ptr()
     }
@@ -451,6 +449,7 @@ impl QueryParser {
         grouping: impl Into<Option<&'g str>>,
     ) {
         use crate::ffi::ToCxxString;
+        use crate::range::FfiRangeProcessor;
 
         let range_proc = range_proc.to_ffi(slot, marker, is_suffix, can_repeat);
 
@@ -480,6 +479,7 @@ impl QueryParser {
 
     /// Set the [`Stopper`][crate::Stopper] to be used with this `QueryParser`
     pub fn set_stopper<T: crate::Stopper + 'static>(&mut self, stopper: impl Into<Option<T>>) {
+        use crate::term::FfiStopper;
         let stopper = stopper.into().map_or(std::ptr::null(), |s| {
             Deref::deref(&s.into_ffi().upcast()) as *const _
         });

@@ -227,15 +227,15 @@ impl From<ffi::TermGenerator_stop_strategy> for StopStrategy {
 pub trait Stopper {
     /// Evaluate whether a given word is a stopword.
     fn is_stopword(&self, word: &str) -> bool;
+}
 
-    #[doc(hidden)]
-    fn into_ffi(self) -> &'static StopperWrapper
-    where
-        Self: Sized + 'static,
-    {
-        Box::leak(Box::new(StopperWrapper::from(self)))
+pub(crate) trait FfiStopper: Stopper + Sized + 'static {
+    fn into_ffi(self) -> &'static StopperObj {
+        Box::leak(Box::new(StopperObj::from(self)))
     }
 }
+
+impl<S: Stopper + Sized + 'static> FfiStopper for S {}
 
 impl<F> Stopper for F
 where
@@ -258,16 +258,15 @@ impl Stopper for HashSet<&str> {
     }
 }
 
-#[doc(hidden)]
-pub struct StopperWrapper(Rc<RefCell<ffi::RustStopper>>);
+pub(crate) struct StopperObj(Rc<RefCell<ffi::RustStopper>>);
 
-impl StopperWrapper {
+impl StopperObj {
     pub(crate) fn upcast(&self) -> impl Deref<Target = ffi::shim::FfiStopper> + '_ {
         Ref::map(self.0.borrow(), |s| s.as_ref())
     }
 }
 
-impl<T: Stopper + 'static> From<T> for StopperWrapper {
+impl<T: Stopper + 'static> From<T> for StopperObj {
     fn from(value: T) -> Self {
         Self(ffi::RustStopper::from_trait(value))
     }
