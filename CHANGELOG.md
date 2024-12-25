@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## [0.3.0] - 2024-12-25
+
+### Added
+- RangeProcessor trait with a few built-in implementations
+- Functor-style traits provide blanket impls for matching Fn impls
+- Enquire::mset_with_decider
+
+### Removed
+- NativeRangeProcessor
+- to_ffi/into_ffi APIs no longer public
+
+### Changed
+  - Enquire::mset no longer takes a MatchDecider (see Enquire::mset_with_decider)
+  - Enquire::eset is generic over an ExpandDecider
+
 ## [0.2.1] - 2024-12-16
 
 ### Added
@@ -39,7 +54,9 @@ N/A
 - Support for user-provided MatchSpy and MatchDecider implementations
 - Support for arbitrary types in Xapian document slots
 
-[unreleased]: https://github.com/torrancew/xapian-rs/compare/v0.2.1...HEAD
+[unreleased]: https://github.com/torrancew/xapian-rs/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/torrancew/xapian-rs/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/torrancew/xapian-rs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/torrancew/xapian-rs/compare/tag/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/torrancew/xapian-rs/releases/tag/v0.1.0
+
